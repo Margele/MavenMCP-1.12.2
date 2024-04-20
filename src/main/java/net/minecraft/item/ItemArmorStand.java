@@ -6,38 +6,42 @@ import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.item.EntityArmorStand;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.util.AxisAlignedBB;
-import net.minecraft.util.BlockPos;
+import net.minecraft.init.SoundEvents;
+import net.minecraft.util.EnumActionResult;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.MathHelper;
-import net.minecraft.util.Rotations;
+import net.minecraft.util.EnumHand;
+import net.minecraft.util.SoundCategory;
+import net.minecraft.util.math.AxisAlignedBB;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Rotations;
 import net.minecraft.world.World;
 
 public class ItemArmorStand extends Item
 {
     public ItemArmorStand()
     {
-        this.setCreativeTab(CreativeTabs.tabDecorations);
+        this.setCreativeTab(CreativeTabs.DECORATIONS);
     }
 
     /**
      * Called when a Block is right-clicked with this Item
      */
-    public boolean onItemUse(ItemStack stack, EntityPlayer playerIn, World worldIn, BlockPos pos, EnumFacing side, float hitX, float hitY, float hitZ)
+    public EnumActionResult onItemUse(EntityPlayer player, World worldIn, BlockPos pos, EnumHand hand, EnumFacing facing, float hitX, float hitY, float hitZ)
     {
-        if (side == EnumFacing.DOWN)
+        if (facing == EnumFacing.DOWN)
         {
-            return false;
+            return EnumActionResult.FAIL;
         }
         else
         {
             boolean flag = worldIn.getBlockState(pos).getBlock().isReplaceable(worldIn, pos);
-            BlockPos blockpos = flag ? pos : pos.offset(side);
+            BlockPos blockpos = flag ? pos : pos.offset(facing);
+            ItemStack itemstack = player.getHeldItem(hand);
 
-            if (!playerIn.canPlayerEdit(blockpos, side, stack))
+            if (!player.canPlayerEdit(blockpos, facing, itemstack))
             {
-                return false;
+                return EnumActionResult.FAIL;
             }
             else
             {
@@ -47,18 +51,18 @@ public class ItemArmorStand extends Item
 
                 if (flag1)
                 {
-                    return false;
+                    return EnumActionResult.FAIL;
                 }
                 else
                 {
                     double d0 = (double)blockpos.getX();
                     double d1 = (double)blockpos.getY();
                     double d2 = (double)blockpos.getZ();
-                    List<Entity> list = worldIn.getEntitiesWithinAABBExcludingEntity((Entity)null, AxisAlignedBB.fromBounds(d0, d1, d2, d0 + 1.0D, d1 + 2.0D, d2 + 1.0D));
+                    List<Entity> list = worldIn.getEntitiesWithinAABBExcludingEntity((Entity)null, new AxisAlignedBB(d0, d1, d2, d0 + 1.0D, d1 + 2.0D, d2 + 1.0D));
 
-                    if (list.size() > 0)
+                    if (!list.isEmpty())
                     {
-                        return false;
+                        return EnumActionResult.FAIL;
                     }
                     else
                     {
@@ -67,24 +71,16 @@ public class ItemArmorStand extends Item
                             worldIn.setBlockToAir(blockpos);
                             worldIn.setBlockToAir(blockpos1);
                             EntityArmorStand entityarmorstand = new EntityArmorStand(worldIn, d0 + 0.5D, d1, d2 + 0.5D);
-                            float f = (float)MathHelper.floor_float((MathHelper.wrapAngleTo180_float(playerIn.rotationYaw - 180.0F) + 22.5F) / 45.0F) * 45.0F;
+                            float f = (float)MathHelper.floor((MathHelper.wrapDegrees(player.rotationYaw - 180.0F) + 22.5F) / 45.0F) * 45.0F;
                             entityarmorstand.setLocationAndAngles(d0 + 0.5D, d1, d2 + 0.5D, f, 0.0F);
                             this.applyRandomRotations(entityarmorstand, worldIn.rand);
-                            NBTTagCompound nbttagcompound = stack.getTagCompound();
-
-                            if (nbttagcompound != null && nbttagcompound.hasKey("EntityTag", 10))
-                            {
-                                NBTTagCompound nbttagcompound1 = new NBTTagCompound();
-                                entityarmorstand.writeToNBTOptional(nbttagcompound1);
-                                nbttagcompound1.merge(nbttagcompound.getCompoundTag("EntityTag"));
-                                entityarmorstand.readFromNBT(nbttagcompound1);
-                            }
-
-                            worldIn.spawnEntityInWorld(entityarmorstand);
+                            ItemMonsterPlacer.applyItemEntityDataToEntity(worldIn, player, itemstack, entityarmorstand);
+                            worldIn.spawnEntity(entityarmorstand);
+                            worldIn.playSound((EntityPlayer)null, entityarmorstand.posX, entityarmorstand.posY, entityarmorstand.posZ, SoundEvents.ENTITY_ARMORSTAND_PLACE, SoundCategory.BLOCKS, 0.75F, 0.8F);
                         }
 
-                        --stack.stackSize;
-                        return true;
+                        itemstack.shrink(1);
+                        return EnumActionResult.SUCCESS;
                     }
                 }
             }

@@ -4,90 +4,85 @@ import java.util.Random;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.properties.IProperty;
 import net.minecraft.block.properties.PropertyInteger;
-import net.minecraft.block.state.BlockState;
+import net.minecraft.block.state.BlockFaceShape;
+import net.minecraft.block.state.BlockStateContainer;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Items;
 import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraft.stats.StatList;
-import net.minecraft.util.AxisAlignedBB;
-import net.minecraft.util.BlockPos;
+import net.minecraft.util.BlockRenderLayer;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumWorldBlockLayer;
+import net.minecraft.util.EnumHand;
+import net.minecraft.util.math.AxisAlignedBB;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 
 public class BlockCake extends Block
 {
     public static final PropertyInteger BITES = PropertyInteger.create("bites", 0, 6);
+    protected static final AxisAlignedBB[] CAKE_AABB = new AxisAlignedBB[] {new AxisAlignedBB(0.0625D, 0.0D, 0.0625D, 0.9375D, 0.5D, 0.9375D), new AxisAlignedBB(0.1875D, 0.0D, 0.0625D, 0.9375D, 0.5D, 0.9375D), new AxisAlignedBB(0.3125D, 0.0D, 0.0625D, 0.9375D, 0.5D, 0.9375D), new AxisAlignedBB(0.4375D, 0.0D, 0.0625D, 0.9375D, 0.5D, 0.9375D), new AxisAlignedBB(0.5625D, 0.0D, 0.0625D, 0.9375D, 0.5D, 0.9375D), new AxisAlignedBB(0.6875D, 0.0D, 0.0625D, 0.9375D, 0.5D, 0.9375D), new AxisAlignedBB(0.8125D, 0.0D, 0.0625D, 0.9375D, 0.5D, 0.9375D)};
 
     protected BlockCake()
     {
-        super(Material.cake);
+        super(Material.CAKE);
         this.setDefaultState(this.blockState.getBaseState().withProperty(BITES, Integer.valueOf(0)));
         this.setTickRandomly(true);
     }
 
-    public void setBlockBoundsBasedOnState(IBlockAccess worldIn, BlockPos pos)
+    /**
+     * @deprecated call via {@link IBlockState#getBoundingBox(IBlockAccess,BlockPos)} whenever possible.
+     * Implementing/overriding is fine.
+     */
+    public AxisAlignedBB getBoundingBox(IBlockState state, IBlockAccess source, BlockPos pos)
     {
-        float f = 0.0625F;
-        float f1 = (float)(1 + ((Integer)worldIn.getBlockState(pos).getValue(BITES)).intValue() * 2) / 16.0F;
-        float f2 = 0.5F;
-        this.setBlockBounds(f1, 0.0F, f, 1.0F - f, f2, 1.0F - f);
+        return CAKE_AABB[((Integer)state.getValue(BITES)).intValue()];
     }
 
     /**
-     * Sets the block's bounds for rendering it as an item
+     * @deprecated call via {@link IBlockState#isFullCube()} whenever possible. Implementing/overriding is fine.
      */
-    public void setBlockBoundsForItemRender()
-    {
-        float f = 0.0625F;
-        float f1 = 0.5F;
-        this.setBlockBounds(f, 0.0F, f, 1.0F - f, f1, 1.0F - f);
-    }
-
-    public AxisAlignedBB getCollisionBoundingBox(World worldIn, BlockPos pos, IBlockState state)
-    {
-        float f = 0.0625F;
-        float f1 = (float)(1 + ((Integer)state.getValue(BITES)).intValue() * 2) / 16.0F;
-        float f2 = 0.5F;
-        return new AxisAlignedBB((double)((float)pos.getX() + f1), (double)pos.getY(), (double)((float)pos.getZ() + f), (double)((float)(pos.getX() + 1) - f), (double)((float)pos.getY() + f2), (double)((float)(pos.getZ() + 1) - f));
-    }
-
-    public AxisAlignedBB getSelectedBoundingBox(World worldIn, BlockPos pos)
-    {
-        return this.getCollisionBoundingBox(worldIn, pos, worldIn.getBlockState(pos));
-    }
-
-    public boolean isFullCube()
+    public boolean isFullCube(IBlockState state)
     {
         return false;
     }
 
     /**
      * Used to determine ambient occlusion and culling when rebuilding chunks for render
+     * @deprecated call via {@link IBlockState#isOpaqueCube()} whenever possible. Implementing/overriding is fine.
      */
-    public boolean isOpaqueCube()
+    public boolean isOpaqueCube(IBlockState state)
     {
         return false;
     }
 
-    public boolean onBlockActivated(World worldIn, BlockPos pos, IBlockState state, EntityPlayer playerIn, EnumFacing side, float hitX, float hitY, float hitZ)
+    /**
+     * Called when the block is right clicked by a player.
+     */
+    public boolean onBlockActivated(World worldIn, BlockPos pos, IBlockState state, EntityPlayer playerIn, EnumHand hand, EnumFacing facing, float hitX, float hitY, float hitZ)
     {
-        this.eatCake(worldIn, pos, state, playerIn);
-        return true;
-    }
-
-    public void onBlockClicked(World worldIn, BlockPos pos, EntityPlayer playerIn)
-    {
-        this.eatCake(worldIn, pos, worldIn.getBlockState(pos), playerIn);
-    }
-
-    private void eatCake(World worldIn, BlockPos pos, IBlockState state, EntityPlayer player)
-    {
-        if (player.canEat(false))
+        if (!worldIn.isRemote)
         {
-            player.triggerAchievement(StatList.field_181724_H);
+            return this.eatCake(worldIn, pos, state, playerIn);
+        }
+        else
+        {
+            ItemStack itemstack = playerIn.getHeldItem(hand);
+            return this.eatCake(worldIn, pos, state, playerIn) || itemstack.isEmpty();
+        }
+    }
+
+    private boolean eatCake(World worldIn, BlockPos pos, IBlockState state, EntityPlayer player)
+    {
+        if (!player.canEat(false))
+        {
+            return false;
+        }
+        else
+        {
+            player.addStat(StatList.CAKE_SLICES_EATEN);
             player.getFoodStats().addStats(2, 0.1F);
             int i = ((Integer)state.getValue(BITES)).intValue();
 
@@ -99,18 +94,25 @@ public class BlockCake extends Block
             {
                 worldIn.setBlockToAir(pos);
             }
+
+            return true;
         }
     }
 
+    /**
+     * Checks if this block can be placed exactly at the given position.
+     */
     public boolean canPlaceBlockAt(World worldIn, BlockPos pos)
     {
         return super.canPlaceBlockAt(worldIn, pos) ? this.canBlockStay(worldIn, pos) : false;
     }
 
     /**
-     * Called when a neighboring block changes.
+     * Called when a neighboring block was changed and marks that this state should perform any checks during a neighbor
+     * change. Cases may include when redstone power is updated, cactus blocks popping off due to a neighboring solid
+     * block, etc.
      */
-    public void onNeighborBlockChange(World worldIn, BlockPos pos, IBlockState state, Block neighborBlock)
+    public void neighborChanged(IBlockState state, World worldIn, BlockPos pos, Block blockIn, BlockPos fromPos)
     {
         if (!this.canBlockStay(worldIn, pos))
         {
@@ -120,7 +122,7 @@ public class BlockCake extends Block
 
     private boolean canBlockStay(World worldIn, BlockPos pos)
     {
-        return worldIn.getBlockState(pos.down()).getBlock().getMaterial().isSolid();
+        return worldIn.getBlockState(pos.down()).getMaterial().isSolid();
     }
 
     /**
@@ -136,17 +138,21 @@ public class BlockCake extends Block
      */
     public Item getItemDropped(IBlockState state, Random rand, int fortune)
     {
-        return null;
+        return Items.AIR;
     }
 
-    public Item getItem(World worldIn, BlockPos pos)
+    public ItemStack getItem(World worldIn, BlockPos pos, IBlockState state)
     {
-        return Items.cake;
+        return new ItemStack(Items.CAKE);
     }
 
-    public EnumWorldBlockLayer getBlockLayer()
+    /**
+     * Gets the render layer this block will render on. SOLID for solid blocks, CUTOUT or CUTOUT_MIPPED for on-off
+     * transparency (glass, reeds), TRANSLUCENT for fully blended transparency (stained glass)
+     */
+    public BlockRenderLayer getRenderLayer()
     {
-        return EnumWorldBlockLayer.CUTOUT;
+        return BlockRenderLayer.CUTOUT;
     }
 
     /**
@@ -165,18 +171,42 @@ public class BlockCake extends Block
         return ((Integer)state.getValue(BITES)).intValue();
     }
 
-    protected BlockState createBlockState()
+    protected BlockStateContainer createBlockState()
     {
-        return new BlockState(this, new IProperty[] {BITES});
+        return new BlockStateContainer(this, new IProperty[] {BITES});
     }
 
-    public int getComparatorInputOverride(World worldIn, BlockPos pos)
+    /**
+     * @deprecated call via {@link IBlockState#getComparatorInputOverride(World,BlockPos)} whenever possible.
+     * Implementing/overriding is fine.
+     */
+    public int getComparatorInputOverride(IBlockState blockState, World worldIn, BlockPos pos)
     {
-        return (7 - ((Integer)worldIn.getBlockState(pos).getValue(BITES)).intValue()) * 2;
+        return (7 - ((Integer)blockState.getValue(BITES)).intValue()) * 2;
     }
 
-    public boolean hasComparatorInputOverride()
+    /**
+     * @deprecated call via {@link IBlockState#hasComparatorInputOverride()} whenever possible. Implementing/overriding
+     * is fine.
+     */
+    public boolean hasComparatorInputOverride(IBlockState state)
     {
         return true;
+    }
+
+    /**
+     * Get the geometry of the queried face at the given position and state. This is used to decide whether things like
+     * buttons are allowed to be placed on the face, or how glass panes connect to the face, among other things.
+     * <p>
+     * Common values are {@code SOLID}, which is the default, and {@code UNDEFINED}, which represents something that
+     * does not fit the other descriptions and will generally cause other things not to connect to the face.
+
+     * @return an approximation of the form of the given face
+     * @deprecated call via {@link IBlockState#getBlockFaceShape(IBlockAccess,BlockPos,EnumFacing)} whenever possible.
+     * Implementing/overriding is fine.
+     */
+    public BlockFaceShape getBlockFaceShape(IBlockAccess worldIn, IBlockState state, BlockPos pos, EnumFacing face)
+    {
+        return BlockFaceShape.UNDEFINED;
     }
 }

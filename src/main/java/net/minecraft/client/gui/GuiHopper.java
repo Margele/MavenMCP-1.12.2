@@ -14,14 +14,14 @@ public class GuiHopper extends GuiContainer
     private static final ResourceLocation HOPPER_GUI_TEXTURE = new ResourceLocation("textures/gui/container/hopper.png");
 
     /** The player inventory currently bound to this GUI instance */
-    private IInventory playerInventory;
+    private final IInventory playerInventory;
 
     /** The hopper inventory bound to this GUI instance */
-    private IInventory hopperInventory;
+    private final IInventory hopperInventory;
 
     public GuiHopper(InventoryPlayer playerInv, IInventory hopperInv)
     {
-        super(new ContainerHopper(playerInv, hopperInv, Minecraft.getMinecraft().thePlayer));
+        super(new ContainerHopper(playerInv, hopperInv, Minecraft.getMinecraft().player));
         this.playerInventory = playerInv;
         this.hopperInventory = hopperInv;
         this.allowUserInput = false;
@@ -29,16 +29,26 @@ public class GuiHopper extends GuiContainer
     }
 
     /**
-     * Draw the foreground layer for the GuiContainer (everything in front of the items). Args : mouseX, mouseY
+     * Draws the screen and all the components in it.
      */
-    protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY)
+    public void drawScreen(int mouseX, int mouseY, float partialTicks)
     {
-        this.fontRendererObj.drawString(this.hopperInventory.getDisplayName().getUnformattedText(), 8, 6, 4210752);
-        this.fontRendererObj.drawString(this.playerInventory.getDisplayName().getUnformattedText(), 8, this.ySize - 96 + 2, 4210752);
+        this.drawDefaultBackground();
+        super.drawScreen(mouseX, mouseY, partialTicks);
+        this.renderHoveredToolTip(mouseX, mouseY);
     }
 
     /**
-     * Args : renderPartialTicks, mouseX, mouseY
+     * Draw the foreground layer for the GuiContainer (everything in front of the items)
+     */
+    protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY)
+    {
+        this.fontRenderer.drawString(this.hopperInventory.getDisplayName().getUnformattedText(), 8, 6, 4210752);
+        this.fontRenderer.drawString(this.playerInventory.getDisplayName().getUnformattedText(), 8, this.ySize - 96 + 2, 4210752);
+    }
+
+    /**
+     * Draws the background layer of this container (behind the items).
      */
     protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY)
     {

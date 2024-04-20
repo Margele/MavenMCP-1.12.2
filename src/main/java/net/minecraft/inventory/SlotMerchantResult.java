@@ -9,25 +9,25 @@ import net.minecraft.village.MerchantRecipe;
 public class SlotMerchantResult extends Slot
 {
     /** Merchant's inventory. */
-    private final InventoryMerchant theMerchantInventory;
+    private final InventoryMerchant merchantInventory;
 
     /** The Player whos trying to buy/sell stuff. */
-    private EntityPlayer thePlayer;
-    private int field_75231_g;
+    private final EntityPlayer player;
+    private int removeCount;
 
     /** "Instance" of the Merchant. */
-    private final IMerchant theMerchant;
+    private final IMerchant merchant;
 
     public SlotMerchantResult(EntityPlayer player, IMerchant merchant, InventoryMerchant merchantInventory, int slotIndex, int xPosition, int yPosition)
     {
         super(merchantInventory, slotIndex, xPosition, yPosition);
-        this.thePlayer = player;
-        this.theMerchant = merchant;
-        this.theMerchantInventory = merchantInventory;
+        this.player = player;
+        this.merchant = merchant;
+        this.merchantInventory = merchantInventory;
     }
 
     /**
-     * Check if the stack is a valid item for this slot. Always true beside for the armor slots.
+     * Check if the stack is allowed to be placed in this slot, used for armor slots as well as furnace fuel.
      */
     public boolean isItemValid(ItemStack stack)
     {
@@ -42,7 +42,7 @@ public class SlotMerchantResult extends Slot
     {
         if (this.getHasStack())
         {
-            this.field_75231_g += Math.min(amount, this.getStack().stackSize);
+            this.removeCount += Math.min(amount, this.getStack().getCount());
         }
 
         return super.decrStackSize(amount);
@@ -54,7 +54,7 @@ public class SlotMerchantResult extends Slot
      */
     protected void onCrafting(ItemStack stack, int amount)
     {
-        this.field_75231_g += amount;
+        this.removeCount += amount;
         this.onCrafting(stack);
     }
 
@@ -63,39 +63,30 @@ public class SlotMerchantResult extends Slot
      */
     protected void onCrafting(ItemStack stack)
     {
-        stack.onCrafting(this.thePlayer.worldObj, this.thePlayer, this.field_75231_g);
-        this.field_75231_g = 0;
+        stack.onCrafting(this.player.world, this.player, this.removeCount);
+        this.removeCount = 0;
     }
 
-    public void onPickupFromSlot(EntityPlayer playerIn, ItemStack stack)
+    public ItemStack onTake(EntityPlayer thePlayer, ItemStack stack)
     {
         this.onCrafting(stack);
-        MerchantRecipe merchantrecipe = this.theMerchantInventory.getCurrentRecipe();
+        MerchantRecipe merchantrecipe = this.merchantInventory.getCurrentRecipe();
 
         if (merchantrecipe != null)
         {
-            ItemStack itemstack = this.theMerchantInventory.getStackInSlot(0);
-            ItemStack itemstack1 = this.theMerchantInventory.getStackInSlot(1);
+            ItemStack itemstack = this.merchantInventory.getStackInSlot(0);
+            ItemStack itemstack1 = this.merchantInventory.getStackInSlot(1);
 
             if (this.doTrade(merchantrecipe, itemstack, itemstack1) || this.doTrade(merchantrecipe, itemstack1, itemstack))
             {
-                this.theMerchant.useRecipe(merchantrecipe);
-                playerIn.triggerAchievement(StatList.timesTradedWithVillagerStat);
-
-                if (itemstack != null && itemstack.stackSize <= 0)
-                {
-                    itemstack = null;
-                }
-
-                if (itemstack1 != null && itemstack1.stackSize <= 0)
-                {
-                    itemstack1 = null;
-                }
-
-                this.theMerchantInventory.setInventorySlotContents(0, itemstack);
-                this.theMerchantInventory.setInventorySlotContents(1, itemstack1);
+                this.merchant.useRecipe(merchantrecipe);
+                thePlayer.addStat(StatList.TRADED_WITH_VILLAGER);
+                this.merchantInventory.setInventorySlotContents(0, itemstack);
+                this.merchantInventory.setInventorySlotContents(1, itemstack1);
             }
         }
+
+        return stack;
     }
 
     private boolean doTrade(MerchantRecipe trade, ItemStack firstItem, ItemStack secondItem)
@@ -103,18 +94,18 @@ public class SlotMerchantResult extends Slot
         ItemStack itemstack = trade.getItemToBuy();
         ItemStack itemstack1 = trade.getSecondItemToBuy();
 
-        if (firstItem != null && firstItem.getItem() == itemstack.getItem())
+        if (firstItem.getItem() == itemstack.getItem() && firstItem.getCount() >= itemstack.getCount())
         {
-            if (itemstack1 != null && secondItem != null && itemstack1.getItem() == secondItem.getItem())
+            if (!itemstack1.isEmpty() && !secondItem.isEmpty() && itemstack1.getItem() == secondItem.getItem() && secondItem.getCount() >= itemstack1.getCount())
             {
-                firstItem.stackSize -= itemstack.stackSize;
-                secondItem.stackSize -= itemstack1.stackSize;
+                firstItem.shrink(itemstack.getCount());
+                secondItem.shrink(itemstack1.getCount());
                 return true;
             }
 
-            if (itemstack1 == null && secondItem == null)
+            if (itemstack1.isEmpty() && secondItem.isEmpty())
             {
-                firstItem.stackSize -= itemstack.stackSize;
+                firstItem.shrink(itemstack.getCount());
                 return true;
             }
         }

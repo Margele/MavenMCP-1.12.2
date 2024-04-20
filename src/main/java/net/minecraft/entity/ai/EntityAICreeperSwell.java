@@ -25,7 +25,7 @@ public class EntityAICreeperSwell extends EntityAIBase
     public boolean shouldExecute()
     {
         EntityLivingBase entitylivingbase = this.swellingCreeper.getAttackTarget();
-        return this.swellingCreeper.getCreeperState() > 0 || entitylivingbase != null && this.swellingCreeper.getDistanceSqToEntity(entitylivingbase) < 9.0D;
+        return this.swellingCreeper.getCreeperState() > 0 || entitylivingbase != null && this.swellingCreeper.getDistanceSq(entitylivingbase) < 9.0D;
     }
 
     /**
@@ -33,12 +33,12 @@ public class EntityAICreeperSwell extends EntityAIBase
      */
     public void startExecuting()
     {
-        this.swellingCreeper.getNavigator().clearPathEntity();
+        this.swellingCreeper.getNavigator().clearPath();
         this.creeperAttackTarget = this.swellingCreeper.getAttackTarget();
     }
 
     /**
-     * Resets the task
+     * Reset the task's internal state. Called when this task is interrupted by another one
      */
     public void resetTask()
     {
@@ -46,7 +46,7 @@ public class EntityAICreeperSwell extends EntityAIBase
     }
 
     /**
-     * Updates the task
+     * Keep ticking a continuous task that has already been started
      */
     public void updateTask()
     {
@@ -54,7 +54,7 @@ public class EntityAICreeperSwell extends EntityAIBase
         {
             this.swellingCreeper.setCreeperState(-1);
         }
-        else if (this.swellingCreeper.getDistanceSqToEntity(this.creeperAttackTarget) > 49.0D)
+        else if (this.swellingCreeper.getDistanceSq(this.creeperAttackTarget) > 49.0D)
         {
             this.swellingCreeper.setCreeperState(-1);
         }

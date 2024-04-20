@@ -1,15 +1,14 @@
 package net.minecraft.block;
 
-import java.util.List;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.properties.IProperty;
 import net.minecraft.block.properties.PropertyEnum;
-import net.minecraft.block.state.BlockState;
+import net.minecraft.block.state.BlockStateContainer;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.creativetab.CreativeTabs;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.IStringSerializable;
+import net.minecraft.util.NonNullList;
 
 public class BlockStoneBrick extends Block
 {
@@ -21,9 +20,9 @@ public class BlockStoneBrick extends Block
 
     public BlockStoneBrick()
     {
-        super(Material.rock);
+        super(Material.ROCK);
         this.setDefaultState(this.blockState.getBaseState().withProperty(VARIANT, BlockStoneBrick.EnumType.DEFAULT));
-        this.setCreativeTab(CreativeTabs.tabBlock);
+        this.setCreativeTab(CreativeTabs.BUILDING_BLOCKS);
     }
 
     /**
@@ -38,11 +37,11 @@ public class BlockStoneBrick extends Block
     /**
      * returns a list of blocks with the same ID, but different meta (eg: wood returns 4 blocks)
      */
-    public void getSubBlocks(Item itemIn, CreativeTabs tab, List<ItemStack> list)
+    public void getSubBlocks(CreativeTabs itemIn, NonNullList<ItemStack> items)
     {
         for (BlockStoneBrick.EnumType blockstonebrick$enumtype : BlockStoneBrick.EnumType.values())
         {
-            list.add(new ItemStack(itemIn, 1, blockstonebrick$enumtype.getMetadata()));
+            items.add(new ItemStack(this, 1, blockstonebrick$enumtype.getMetadata()));
         }
     }
 
@@ -62,9 +61,9 @@ public class BlockStoneBrick extends Block
         return ((BlockStoneBrick.EnumType)state.getValue(VARIANT)).getMetadata();
     }
 
-    protected BlockState createBlockState()
+    protected BlockStateContainer createBlockState()
     {
-        return new BlockState(this, new IProperty[] {VARIANT});
+        return new BlockStateContainer(this, new IProperty[] {VARIANT});
     }
 
     public static enum EnumType implements IStringSerializable
@@ -77,13 +76,13 @@ public class BlockStoneBrick extends Block
         private static final BlockStoneBrick.EnumType[] META_LOOKUP = new BlockStoneBrick.EnumType[values().length];
         private final int meta;
         private final String name;
-        private final String unlocalizedName;
+        private final String translationKey;
 
         private EnumType(int meta, String name, String unlocalizedName)
         {
             this.meta = meta;
             this.name = name;
-            this.unlocalizedName = unlocalizedName;
+            this.translationKey = unlocalizedName;
         }
 
         public int getMetadata()
@@ -111,9 +110,9 @@ public class BlockStoneBrick extends Block
             return this.name;
         }
 
-        public String getUnlocalizedName()
+        public String getTranslationKey()
         {
-            return this.unlocalizedName;
+            return this.translationKey;
         }
 
         static {

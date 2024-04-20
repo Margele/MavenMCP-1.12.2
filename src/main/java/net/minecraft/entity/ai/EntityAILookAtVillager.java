@@ -5,13 +5,13 @@ import net.minecraft.entity.passive.EntityVillager;
 
 public class EntityAILookAtVillager extends EntityAIBase
 {
-    private EntityIronGolem theGolem;
-    private EntityVillager theVillager;
+    private final EntityIronGolem ironGolem;
+    private EntityVillager villager;
     private int lookTime;
 
-    public EntityAILookAtVillager(EntityIronGolem theGolemIn)
+    public EntityAILookAtVillager(EntityIronGolem ironGolemIn)
     {
-        this.theGolem = theGolemIn;
+        this.ironGolem = ironGolemIn;
         this.setMutexBits(3);
     }
 
@@ -20,25 +20,25 @@ public class EntityAILookAtVillager extends EntityAIBase
      */
     public boolean shouldExecute()
     {
-        if (!this.theGolem.worldObj.isDaytime())
+        if (!this.ironGolem.world.isDaytime())
         {
             return false;
         }
-        else if (this.theGolem.getRNG().nextInt(8000) != 0)
+        else if (this.ironGolem.getRNG().nextInt(8000) != 0)
         {
             return false;
         }
         else
         {
-            this.theVillager = (EntityVillager)this.theGolem.worldObj.findNearestEntityWithinAABB(EntityVillager.class, this.theGolem.getEntityBoundingBox().expand(6.0D, 2.0D, 6.0D), this.theGolem);
-            return this.theVillager != null;
+            this.villager = (EntityVillager)this.ironGolem.world.findNearestEntityWithinAABB(EntityVillager.class, this.ironGolem.getEntityBoundingBox().grow(6.0D, 2.0D, 6.0D), this.ironGolem);
+            return this.villager != null;
         }
     }
 
     /**
      * Returns whether an in-progress EntityAIBase should continue executing
      */
-    public boolean continueExecuting()
+    public boolean shouldContinueExecuting()
     {
         return this.lookTime > 0;
     }
@@ -49,24 +49,24 @@ public class EntityAILookAtVillager extends EntityAIBase
     public void startExecuting()
     {
         this.lookTime = 400;
-        this.theGolem.setHoldingRose(true);
+        this.ironGolem.setHoldingRose(true);
     }
 
     /**
-     * Resets the task
+     * Reset the task's internal state. Called when this task is interrupted by another one
      */
     public void resetTask()
     {
-        this.theGolem.setHoldingRose(false);
-        this.theVillager = null;
+        this.ironGolem.setHoldingRose(false);
+        this.villager = null;
     }
 
     /**
-     * Updates the task
+     * Keep ticking a continuous task that has already been started
      */
     public void updateTask()
     {
-        this.theGolem.getLookHelper().setLookPositionWithEntity(this.theVillager, 30.0F, 30.0F);
+        this.ironGolem.getLookHelper().setLookPositionWithEntity(this.villager, 30.0F, 30.0F);
         --this.lookTime;
     }
 }

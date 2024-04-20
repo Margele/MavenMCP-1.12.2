@@ -7,8 +7,8 @@ import java.util.List;
 public class ThreadedFileIOBase implements Runnable
 {
     /** Instance of ThreadedFileIOBase */
-    private static final ThreadedFileIOBase threadedIOInstance = new ThreadedFileIOBase();
-    private List<IThreadedFileIO> threadedIOQueue = Collections.<IThreadedFileIO>synchronizedList(Lists.<IThreadedFileIO>newArrayList());
+    private static final ThreadedFileIOBase INSTANCE = new ThreadedFileIOBase();
+    private final List<IThreadedFileIO> threadedIOQueue = Collections.<IThreadedFileIO>synchronizedList(Lists.newArrayList());
     private volatile long writeQueuedCounter;
     private volatile long savedIOCounter;
     private volatile boolean isThreadWaiting;
@@ -25,7 +25,7 @@ public class ThreadedFileIOBase implements Runnable
      */
     public static ThreadedFileIOBase getThreadedIOInstance()
     {
-        return threadedIOInstance;
+        return INSTANCE;
     }
 
     public void run()
@@ -43,7 +43,7 @@ public class ThreadedFileIOBase implements Runnable
     {
         for (int i = 0; i < this.threadedIOQueue.size(); ++i)
         {
-            IThreadedFileIO ithreadedfileio = (IThreadedFileIO)this.threadedIOQueue.get(i);
+            IThreadedFileIO ithreadedfileio = this.threadedIOQueue.get(i);
             boolean flag = ithreadedfileio.writeNextIO();
 
             if (!flag)
@@ -76,17 +76,21 @@ public class ThreadedFileIOBase implements Runnable
     }
 
     /**
-     * threaded io
+     * Queues an IO task. If the given task has already been queued, nothing happens.
      */
-    public void queueIO(IThreadedFileIO p_75735_1_)
+    public void queueIO(IThreadedFileIO fileIo)
     {
-        if (!this.threadedIOQueue.contains(p_75735_1_))
+        if (!this.threadedIOQueue.contains(fileIo))
         {
             ++this.writeQueuedCounter;
-            this.threadedIOQueue.add(p_75735_1_);
+            this.threadedIOQueue.add(fileIo);
         }
     }
 
+    /**
+     * Causes the current thread to block until all pending IO tasks have been written, and also disables the sleep
+     * between IO tasks until that time.
+     */
     public void waitForFinish() throws InterruptedException
     {
         this.isThreadWaiting = true;

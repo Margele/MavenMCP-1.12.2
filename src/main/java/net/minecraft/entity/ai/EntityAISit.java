@@ -5,14 +5,14 @@ import net.minecraft.entity.passive.EntityTameable;
 
 public class EntityAISit extends EntityAIBase
 {
-    private EntityTameable theEntity;
+    private final EntityTameable tameable;
 
     /** If the EntityTameable is sitting. */
     private boolean isSitting;
 
     public EntityAISit(EntityTameable entityIn)
     {
-        this.theEntity = entityIn;
+        this.tameable = entityIn;
         this.setMutexBits(5);
     }
 
@@ -21,22 +21,30 @@ public class EntityAISit extends EntityAIBase
      */
     public boolean shouldExecute()
     {
-        if (!this.theEntity.isTamed())
+        if (!this.tameable.isTamed())
         {
             return false;
         }
-        else if (this.theEntity.isInWater())
+        else if (this.tameable.isInWater())
         {
             return false;
         }
-        else if (!this.theEntity.onGround)
+        else if (!this.tameable.onGround)
         {
             return false;
         }
         else
         {
-            EntityLivingBase entitylivingbase = this.theEntity.getOwner();
-            return entitylivingbase == null ? true : (this.theEntity.getDistanceSqToEntity(entitylivingbase) < 144.0D && entitylivingbase.getAITarget() != null ? false : this.isSitting);
+            EntityLivingBase entitylivingbase = this.tameable.getOwner();
+
+            if (entitylivingbase == null)
+            {
+                return true;
+            }
+            else
+            {
+                return this.tameable.getDistanceSq(entitylivingbase) < 144.0D && entitylivingbase.getRevengeTarget() != null ? false : this.isSitting;
+            }
         }
     }
 
@@ -45,16 +53,16 @@ public class EntityAISit extends EntityAIBase
      */
     public void startExecuting()
     {
-        this.theEntity.getNavigator().clearPathEntity();
-        this.theEntity.setSitting(true);
+        this.tameable.getNavigator().clearPath();
+        this.tameable.setSitting(true);
     }
 
     /**
-     * Resets the task
+     * Reset the task's internal state. Called when this task is interrupted by another one
      */
     public void resetTask()
     {
-        this.theEntity.setSitting(false);
+        this.tameable.setSitting(false);
     }
 
     /**

@@ -10,37 +10,51 @@ public class GuiChest extends GuiContainer
 {
     /** The ResourceLocation containing the chest GUI texture. */
     private static final ResourceLocation CHEST_GUI_TEXTURE = new ResourceLocation("textures/gui/container/generic_54.png");
-    private IInventory upperChestInventory;
-    private IInventory lowerChestInventory;
+    private final IInventory upperChestInventory;
 
     /**
-     * window height is calculated with these values; the more rows, the heigher
+     * The chest's inventory. Number of slots will vary based off of the type of chest.
      */
-    private int inventoryRows;
+    private final IInventory lowerChestInventory;
+
+    /**
+     * Window height is calculated with these values; the more rows, the higher
+     */
+    private final int inventoryRows;
 
     public GuiChest(IInventory upperInv, IInventory lowerInv)
     {
-        super(new ContainerChest(upperInv, lowerInv, Minecraft.getMinecraft().thePlayer));
+        super(new ContainerChest(upperInv, lowerInv, Minecraft.getMinecraft().player));
         this.upperChestInventory = upperInv;
         this.lowerChestInventory = lowerInv;
         this.allowUserInput = false;
         int i = 222;
-        int j = i - 108;
+        int j = 114;
         this.inventoryRows = lowerInv.getSizeInventory() / 9;
-        this.ySize = j + this.inventoryRows * 18;
+        this.ySize = 114 + this.inventoryRows * 18;
     }
 
     /**
-     * Draw the foreground layer for the GuiContainer (everything in front of the items). Args : mouseX, mouseY
+     * Draws the screen and all the components in it.
+     */
+    public void drawScreen(int mouseX, int mouseY, float partialTicks)
+    {
+        this.drawDefaultBackground();
+        super.drawScreen(mouseX, mouseY, partialTicks);
+        this.renderHoveredToolTip(mouseX, mouseY);
+    }
+
+    /**
+     * Draw the foreground layer for the GuiContainer (everything in front of the items)
      */
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY)
     {
-        this.fontRendererObj.drawString(this.lowerChestInventory.getDisplayName().getUnformattedText(), 8, 6, 4210752);
-        this.fontRendererObj.drawString(this.upperChestInventory.getDisplayName().getUnformattedText(), 8, this.ySize - 96 + 2, 4210752);
+        this.fontRenderer.drawString(this.lowerChestInventory.getDisplayName().getUnformattedText(), 8, 6, 4210752);
+        this.fontRenderer.drawString(this.upperChestInventory.getDisplayName().getUnformattedText(), 8, this.ySize - 96 + 2, 4210752);
     }
 
     /**
-     * Args : renderPartialTicks, mouseX, mouseY
+     * Draws the background layer of this container (behind the items).
      */
     protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY)
     {

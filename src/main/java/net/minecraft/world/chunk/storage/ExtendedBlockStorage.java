@@ -3,14 +3,16 @@ package net.minecraft.world.chunk.storage;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
+import net.minecraft.world.chunk.BlockStateContainer;
 import net.minecraft.world.chunk.NibbleArray;
+import net.optifine.reflect.Reflector;
 
 public class ExtendedBlockStorage
 {
     /**
      * Contains the bottom-most Y block represented by this ExtendedBlockStorage. Typically a multiple of 16.
      */
-    private int yBase;
+    private final int yBase;
 
     /**
      * A total count of the number of non-air blocks in this block storage's Chunk.
@@ -22,39 +24,48 @@ public class ExtendedBlockStorage
      * Chunk from random tick updates for performance reasons.
      */
     private int tickRefCount;
-    private char[] data;
+    private final BlockStateContainer data;
 
     /** The NibbleArray containing a block of Block-light data. */
-    private NibbleArray blocklightArray;
+    private NibbleArray blockLight;
 
-    /** The NibbleArray containing a block of Sky-light data. */
-    private NibbleArray skylightArray;
+    /**
+     * The NibbleArray containing skylight data.
+     *  
+     * Will be null if the provider for the world the chunk containing this block storage does not {@linkplain
+     * net.minecraft.world.WorldProvider#hasSkylight have skylight}.
+     */
+    private NibbleArray skyLight;
 
     public ExtendedBlockStorage(int y, boolean storeSkylight)
     {
         this.yBase = y;
-        this.data = new char[4096];
-        this.blocklightArray = new NibbleArray();
+        this.data = new BlockStateContainer();
+        this.blockLight = new NibbleArray();
 
         if (storeSkylight)
         {
-            this.skylightArray = new NibbleArray();
+            this.skyLight = new NibbleArray();
         }
     }
 
     public IBlockState get(int x, int y, int z)
     {
-        IBlockState iblockstate = (IBlockState)Block.BLOCK_STATE_IDS.getByValue(this.data[y << 8 | z << 4 | x]);
-        return iblockstate != null ? iblockstate : Blocks.air.getDefaultState();
+        return this.data.get(x, y, z);
     }
 
     public void set(int x, int y, int z, IBlockState state)
     {
+        if (Reflector.IExtendedBlockState.isInstance(state))
+        {
+            state = (IBlockState)Reflector.call(state, Reflector.IExtendedBlockState_getClean);
+        }
+
         IBlockState iblockstate = this.get(x, y, z);
         Block block = iblockstate.getBlock();
         Block block1 = state.getBlock();
 
-        if (block != Blocks.air)
+        if (block != Blocks.AIR)
         {
             --this.blockRefCount;
 
@@ -64,7 +75,7 @@ public class ExtendedBlockStorage
             }
         }
 
-        if (block1 != Blocks.air)
+        if (block1 != Blocks.AIR)
         {
             ++this.blockRefCount;
 
@@ -74,25 +85,7 @@ public class ExtendedBlockStorage
             }
         }
 
-        this.data[y << 8 | z << 4 | x] = (char)Block.BLOCK_STATE_IDS.get(state);
-    }
-
-    /**
-     * Returns the block for a location in a chunk, with the extended ID merged from a byte array and a NibbleArray to
-     * form a full 12-bit block ID.
-     */
-    public Block getBlockByExtId(int x, int y, int z)
-    {
-        return this.get(x, y, z).getBlock();
-    }
-
-    /**
-     * Returns the metadata associated with the block at the given coordinates in this ExtendedBlockStorage.
-     */
-    public int getExtBlockMetadata(int x, int y, int z)
-    {
-        IBlockState iblockstate = this.get(x, y, z);
-        return iblockstate.getBlock().getMetaFromState(iblockstate);
+        this.data.set(x, y, z, state);
     }
 
     /**
@@ -107,7 +100,7 @@ public class ExtendedBlockStorage
      * Returns whether or not this block storage's Chunk will require random ticking, used to avoid looping through
      * random block ticks when there are no blocks that would randomly tick.
      */
-    public boolean getNeedsRandomTick()
+    public boolean needsRandomTick()
     {
         return this.tickRefCount > 0;
     }
@@ -123,101 +116,106 @@ public class ExtendedBlockStorage
     /**
      * Sets the saved Sky-light value in the extended block storage structure.
      */
-    public void setExtSkylightValue(int x, int y, int z, int value)
+    public void setSkyLight(int x, int y, int z, int value)
     {
-        this.skylightArray.set(x, y, z, value);
+        this.skyLight.set(x, y, z, value);
     }
 
     /**
      * Gets the saved Sky-light value in the extended block storage structure.
      */
-    public int getExtSkylightValue(int x, int y, int z)
+    public int getSkyLight(int x, int y, int z)
     {
-        return this.skylightArray.get(x, y, z);
+        return this.skyLight.get(x, y, z);
     }
 
     /**
      * Sets the saved Block-light value in the extended block storage structure.
      */
-    public void setExtBlocklightValue(int x, int y, int z, int value)
+    public void setBlockLight(int x, int y, int z, int value)
     {
-        this.blocklightArray.set(x, y, z, value);
+        this.blockLight.set(x, y, z, value);
     }
 
     /**
      * Gets the saved Block-light value in the extended block storage structure.
      */
-    public int getExtBlocklightValue(int x, int y, int z)
+    public int getBlockLight(int x, int y, int z)
     {
-        return this.blocklightArray.get(x, y, z);
+        return this.blockLight.get(x, y, z);
     }
 
-    public void removeInvalidBlocks()
+    public void recalculateRefCounts()
     {
-        this.blockRefCount = 0;
-        this.tickRefCount = 0;
+        IBlockState iblockstate = Blocks.AIR.getDefaultState();
+        int i = 0;
+        int j = 0;
 
-        for (int i = 0; i < 16; ++i)
+        for (int k = 0; k < 16; ++k)
         {
-            for (int j = 0; j < 16; ++j)
+            for (int l = 0; l < 16; ++l)
             {
-                for (int k = 0; k < 16; ++k)
+                for (int i1 = 0; i1 < 16; ++i1)
                 {
-                    Block block = this.getBlockByExtId(i, j, k);
+                    IBlockState iblockstate1 = this.data.get(i1, k, l);
 
-                    if (block != Blocks.air)
+                    if (iblockstate1 != iblockstate)
                     {
-                        ++this.blockRefCount;
+                        ++i;
+                        Block block = iblockstate1.getBlock();
 
                         if (block.getTickRandomly())
                         {
-                            ++this.tickRefCount;
+                            ++j;
                         }
                     }
                 }
             }
         }
+
+        this.blockRefCount = i;
+        this.tickRefCount = j;
     }
 
-    public char[] getData()
+    public BlockStateContainer getData()
     {
         return this.data;
-    }
-
-    public void setData(char[] dataArray)
-    {
-        this.data = dataArray;
     }
 
     /**
      * Returns the NibbleArray instance containing Block-light data.
      */
-    public NibbleArray getBlocklightArray()
+    public NibbleArray getBlockLight()
     {
-        return this.blocklightArray;
+        return this.blockLight;
     }
 
     /**
      * Returns the NibbleArray instance containing Sky-light data.
      */
-    public NibbleArray getSkylightArray()
+    public NibbleArray getSkyLight()
     {
-        return this.skylightArray;
+        return this.skyLight;
     }
 
     /**
      * Sets the NibbleArray instance used for Block-light values in this particular storage block.
      */
-    public void setBlocklightArray(NibbleArray newBlocklightArray)
+    public void setBlockLight(NibbleArray newBlocklightArray)
     {
-        this.blocklightArray = newBlocklightArray;
+        this.blockLight = newBlocklightArray;
     }
 
     /**
      * Sets the NibbleArray instance used for Sky-light values in this particular storage block.
      */
-    public void setSkylightArray(NibbleArray newSkylightArray)
+    public void setSkyLight(NibbleArray newSkylightArray)
     {
-        this.skylightArray = newSkylightArray;
+        this.skyLight = newSkylightArray;
+    }
+
+    public int getBlockRefCount()
+    {
+        return this.blockRefCount;
     }
 }

@@ -1,20 +1,20 @@
 package net.minecraft.entity.ai;
 
 import net.minecraft.entity.EntityCreature;
-import net.minecraft.util.BlockPos;
-import net.minecraft.util.Vec3;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 
 public class EntityAIMoveTowardsRestriction extends EntityAIBase
 {
-    private EntityCreature theEntity;
+    private final EntityCreature creature;
     private double movePosX;
     private double movePosY;
     private double movePosZ;
-    private double movementSpeed;
+    private final double movementSpeed;
 
     public EntityAIMoveTowardsRestriction(EntityCreature creatureIn, double speedIn)
     {
-        this.theEntity = creatureIn;
+        this.creature = creatureIn;
         this.movementSpeed = speedIn;
         this.setMutexBits(1);
     }
@@ -24,24 +24,24 @@ public class EntityAIMoveTowardsRestriction extends EntityAIBase
      */
     public boolean shouldExecute()
     {
-        if (this.theEntity.isWithinHomeDistanceCurrentPosition())
+        if (this.creature.isWithinHomeDistanceCurrentPosition())
         {
             return false;
         }
         else
         {
-            BlockPos blockpos = this.theEntity.getHomePosition();
-            Vec3 vec3 = RandomPositionGenerator.findRandomTargetBlockTowards(this.theEntity, 16, 7, new Vec3((double)blockpos.getX(), (double)blockpos.getY(), (double)blockpos.getZ()));
+            BlockPos blockpos = this.creature.getHomePosition();
+            Vec3d vec3d = RandomPositionGenerator.findRandomTargetBlockTowards(this.creature, 16, 7, new Vec3d((double)blockpos.getX(), (double)blockpos.getY(), (double)blockpos.getZ()));
 
-            if (vec3 == null)
+            if (vec3d == null)
             {
                 return false;
             }
             else
             {
-                this.movePosX = vec3.xCoord;
-                this.movePosY = vec3.yCoord;
-                this.movePosZ = vec3.zCoord;
+                this.movePosX = vec3d.x;
+                this.movePosY = vec3d.y;
+                this.movePosZ = vec3d.z;
                 return true;
             }
         }
@@ -50,9 +50,9 @@ public class EntityAIMoveTowardsRestriction extends EntityAIBase
     /**
      * Returns whether an in-progress EntityAIBase should continue executing
      */
-    public boolean continueExecuting()
+    public boolean shouldContinueExecuting()
     {
-        return !this.theEntity.getNavigator().noPath();
+        return !this.creature.getNavigator().noPath();
     }
 
     /**
@@ -60,6 +60,6 @@ public class EntityAIMoveTowardsRestriction extends EntityAIBase
      */
     public void startExecuting()
     {
-        this.theEntity.getNavigator().tryMoveToXYZ(this.movePosX, this.movePosY, this.movePosZ, this.movementSpeed);
+        this.creature.getNavigator().tryMoveToXYZ(this.movePosX, this.movePosY, this.movePosZ, this.movementSpeed);
     }
 }

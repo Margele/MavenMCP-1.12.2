@@ -2,15 +2,16 @@ package net.minecraft.block;
 
 import java.util.Random;
 import net.minecraft.block.material.Material;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.creativetab.CreativeTabs;
-import net.minecraft.util.EnumWorldBlockLayer;
+import net.minecraft.util.BlockRenderLayer;
 
 public class BlockGlass extends BlockBreakable
 {
     public BlockGlass(Material materialIn, boolean ignoreSimilarity)
     {
         super(materialIn, ignoreSimilarity);
-        this.setCreativeTab(CreativeTabs.tabBlock);
+        this.setCreativeTab(CreativeTabs.BUILDING_BLOCKS);
     }
 
     /**
@@ -21,12 +22,19 @@ public class BlockGlass extends BlockBreakable
         return 0;
     }
 
-    public EnumWorldBlockLayer getBlockLayer()
+    /**
+     * Gets the render layer this block will render on. SOLID for solid blocks, CUTOUT or CUTOUT_MIPPED for on-off
+     * transparency (glass, reeds), TRANSLUCENT for fully blended transparency (stained glass)
+     */
+    public BlockRenderLayer getRenderLayer()
     {
-        return EnumWorldBlockLayer.CUTOUT;
+        return BlockRenderLayer.CUTOUT;
     }
 
-    public boolean isFullCube()
+    /**
+     * @deprecated call via {@link IBlockState#isFullCube()} whenever possible. Implementing/overriding is fine.
+     */
+    public boolean isFullCube(IBlockState state)
     {
         return false;
     }

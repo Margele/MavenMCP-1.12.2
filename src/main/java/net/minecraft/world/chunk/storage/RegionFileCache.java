@@ -9,13 +9,13 @@ import java.util.Map;
 
 public class RegionFileCache
 {
-    private static final Map<File, RegionFile> regionsByFilename = Maps.<File, RegionFile>newHashMap();
+    private static final Map<File, RegionFile> REGIONS_BY_FILE = Maps.<File, RegionFile>newHashMap();
 
     public static synchronized RegionFile createOrLoadRegionFile(File worldDir, int chunkX, int chunkZ)
     {
         File file1 = new File(worldDir, "region");
         File file2 = new File(file1, "r." + (chunkX >> 5) + "." + (chunkZ >> 5) + ".mca");
-        RegionFile regionfile = (RegionFile)regionsByFilename.get(file2);
+        RegionFile regionfile = REGIONS_BY_FILE.get(file2);
 
         if (regionfile != null)
         {
@@ -28,14 +28,41 @@ public class RegionFileCache
                 file1.mkdirs();
             }
 
-            if (regionsByFilename.size() >= 256)
+            if (REGIONS_BY_FILE.size() >= 256)
             {
                 clearRegionFileReferences();
             }
 
             RegionFile regionfile1 = new RegionFile(file2);
-            regionsByFilename.put(file2, regionfile1);
+            REGIONS_BY_FILE.put(file2, regionfile1);
             return regionfile1;
+        }
+    }
+
+    public static synchronized RegionFile getRegionFileIfExists(File worldDir, int chunkX, int chunkZ)
+    {
+        File file1 = new File(worldDir, "region");
+        File file2 = new File(file1, "r." + (chunkX >> 5) + "." + (chunkZ >> 5) + ".mca");
+        RegionFile regionfile = REGIONS_BY_FILE.get(file2);
+
+        if (regionfile != null)
+        {
+            return regionfile;
+        }
+        else if (file1.exists() && file2.exists())
+        {
+            if (REGIONS_BY_FILE.size() >= 256)
+            {
+                clearRegionFileReferences();
+            }
+
+            RegionFile regionfile1 = new RegionFile(file2);
+            REGIONS_BY_FILE.put(file2, regionfile1);
+            return regionfile1;
+        }
+        else
+        {
+            return null;
         }
     }
 
@@ -44,7 +71,7 @@ public class RegionFileCache
      */
     public static synchronized void clearRegionFileReferences()
     {
-        for (RegionFile regionfile : regionsByFilename.values())
+        for (RegionFile regionfile : REGIONS_BY_FILE.values())
         {
             try
             {
@@ -59,11 +86,11 @@ public class RegionFileCache
             }
         }
 
-        regionsByFilename.clear();
+        REGIONS_BY_FILE.clear();
     }
 
     /**
-     * Returns an input stream for the specified chunk. Args: worldDir, chunkX, chunkZ
+     * Gets an input stream for the chunk at the specified location.
      */
     public static DataInputStream getChunkInputStream(File worldDir, int chunkX, int chunkZ)
     {
@@ -72,11 +99,17 @@ public class RegionFileCache
     }
 
     /**
-     * Returns an output stream for the specified chunk. Args: worldDir, chunkX, chunkZ
+     * Gets an output stream for the specified chunk.
      */
     public static DataOutputStream getChunkOutputStream(File worldDir, int chunkX, int chunkZ)
     {
         RegionFile regionfile = createOrLoadRegionFile(worldDir, chunkX, chunkZ);
         return regionfile.getChunkDataOutputStream(chunkX & 31, chunkZ & 31);
+    }
+
+    public static boolean chunkExists(File worldDir, int chunkX, int chunkZ)
+    {
+        RegionFile regionfile = getRegionFileIfExists(worldDir, chunkX, chunkZ);
+        return regionfile != null ? regionfile.isChunkSaved(chunkX & 31, chunkZ & 31) : false;
     }
 }

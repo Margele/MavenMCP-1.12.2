@@ -8,7 +8,7 @@ public class CommandToggleDownfall extends CommandBase
     /**
      * Gets the name of the command
      */
-    public String getCommandName()
+    public String getName()
     {
         return "toggledownfall";
     }
@@ -24,26 +24,23 @@ public class CommandToggleDownfall extends CommandBase
     /**
      * Gets the usage string for the command.
      */
-    public String getCommandUsage(ICommandSender sender)
+    public String getUsage(ICommandSender sender)
     {
         return "commands.downfall.usage";
     }
 
     /**
-     * Callback when the command is invoked
+     * Callback for when the command is executed
      */
-    public void processCommand(ICommandSender sender, String[] args) throws CommandException
+    public void execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException
     {
-        this.toggleDownfall();
-        notifyOperators(sender, this, "commands.downfall.success", new Object[0]);
+        this.toggleRainfall(server);
+        notifyCommandListener(sender, this, "commands.downfall.success", new Object[0]);
     }
 
-    /**
-     * Toggle rain and enable thundering.
-     */
-    protected void toggleDownfall()
+    protected void toggleRainfall(MinecraftServer server)
     {
-        WorldInfo worldinfo = MinecraftServer.getServer().worldServers[0].getWorldInfo();
+        WorldInfo worldinfo = server.worlds[0].getWorldInfo();
         worldinfo.setRaining(!worldinfo.isRaining());
     }
 }

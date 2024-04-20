@@ -4,24 +4,25 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.crafting.CraftingManager;
-import net.minecraft.util.BlockPos;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 public class ContainerWorkbench extends Container
 {
     /** The crafting matrix inventory (3x3). */
     public InventoryCrafting craftMatrix = new InventoryCrafting(this, 3, 3);
-    public IInventory craftResult = new InventoryCraftResult();
-    private World worldObj;
+    public InventoryCraftResult craftResult = new InventoryCraftResult();
+    private final World world;
 
     /** Position of the workbench */
-    private BlockPos pos;
+    private final BlockPos pos;
+    private final EntityPlayer player;
 
     public ContainerWorkbench(InventoryPlayer playerInventory, World worldIn, BlockPos posIn)
     {
-        this.worldObj = worldIn;
+        this.world = worldIn;
         this.pos = posIn;
+        this.player = playerInventory.player;
         this.addSlotToContainer(new SlotCrafting(playerInventory.player, this.craftMatrix, this.craftResult, 0, 124, 35));
 
         for (int i = 0; i < 3; ++i)
@@ -44,8 +45,6 @@ public class ContainerWorkbench extends Container
         {
             this.addSlotToContainer(new Slot(playerInventory, l, 8 + l * 18, 142));
         }
-
-        this.onCraftMatrixChanged(this.craftMatrix);
     }
 
     /**
@@ -53,7 +52,7 @@ public class ContainerWorkbench extends Container
      */
     public void onCraftMatrixChanged(IInventory inventoryIn)
     {
-        this.craftResult.setInventorySlotContents(0, CraftingManager.getInstance().findMatchingRecipe(this.craftMatrix, this.worldObj));
+        this.slotChangedCraftingGrid(this.world, this.player, this.craftMatrix, this.craftResult);
     }
 
     /**
@@ -63,32 +62,35 @@ public class ContainerWorkbench extends Container
     {
         super.onContainerClosed(playerIn);
 
-        if (!this.worldObj.isRemote)
+        if (!this.world.isRemote)
         {
-            for (int i = 0; i < 9; ++i)
-            {
-                ItemStack itemstack = this.craftMatrix.removeStackFromSlot(i);
-
-                if (itemstack != null)
-                {
-                    playerIn.dropPlayerItemWithRandomChoice(itemstack, false);
-                }
-            }
+            this.clearContainer(playerIn, this.world, this.craftMatrix);
         }
     }
 
+    /**
+     * Determines whether supplied player can use this container
+     */
     public boolean canInteractWith(EntityPlayer playerIn)
     {
-        return this.worldObj.getBlockState(this.pos).getBlock() != Blocks.crafting_table ? false : playerIn.getDistanceSq((double)this.pos.getX() + 0.5D, (double)this.pos.getY() + 0.5D, (double)this.pos.getZ() + 0.5D) <= 64.0D;
+        if (this.world.getBlockState(this.pos).getBlock() != Blocks.CRAFTING_TABLE)
+        {
+            return false;
+        }
+        else
+        {
+            return playerIn.getDistanceSq((double)this.pos.getX() + 0.5D, (double)this.pos.getY() + 0.5D, (double)this.pos.getZ() + 0.5D) <= 64.0D;
+        }
     }
 
     /**
-     * Take a stack from the specified inventory slot.
+     * Handle when the stack in slot {@code index} is shift-clicked. Normally this moves the stack between the player
+     * inventory and the other inventory(s).
      */
     public ItemStack transferStackInSlot(EntityPlayer playerIn, int index)
     {
-        ItemStack itemstack = null;
-        Slot slot = (Slot)this.inventorySlots.get(index);
+        ItemStack itemstack = ItemStack.EMPTY;
+        Slot slot = this.inventorySlots.get(index);
 
         if (slot != null && slot.getHasStack())
         {
@@ -97,9 +99,11 @@ public class ContainerWorkbench extends Container
 
             if (index == 0)
             {
+                itemstack1.getItem().onCreated(itemstack1, this.world, playerIn);
+
                 if (!this.mergeItemStack(itemstack1, 10, 46, true))
                 {
-                    return null;
+                    return ItemStack.EMPTY;
                 }
 
                 slot.onSlotChange(itemstack1, itemstack);
@@ -108,36 +112,41 @@ public class ContainerWorkbench extends Container
             {
                 if (!this.mergeItemStack(itemstack1, 37, 46, false))
                 {
-                    return null;
+                    return ItemStack.EMPTY;
                 }
             }
             else if (index >= 37 && index < 46)
             {
                 if (!this.mergeItemStack(itemstack1, 10, 37, false))
                 {
-                    return null;
+                    return ItemStack.EMPTY;
                 }
             }
             else if (!this.mergeItemStack(itemstack1, 10, 46, false))
             {
-                return null;
+                return ItemStack.EMPTY;
             }
 
-            if (itemstack1.stackSize == 0)
+            if (itemstack1.isEmpty())
             {
-                slot.putStack((ItemStack)null);
+                slot.putStack(ItemStack.EMPTY);
             }
             else
             {
                 slot.onSlotChanged();
             }
 
-            if (itemstack1.stackSize == itemstack.stackSize)
+            if (itemstack1.getCount() == itemstack.getCount())
             {
-                return null;
+                return ItemStack.EMPTY;
             }
 
-            slot.onPickupFromSlot(playerIn, itemstack1);
+            ItemStack itemstack2 = slot.onTake(playerIn, itemstack1);
+
+            if (index == 0)
+            {
+                playerIn.dropItem(itemstack2, false);
+            }
         }
 
         return itemstack;

@@ -5,14 +5,14 @@ import net.minecraft.entity.passive.EntityTameable;
 
 public class EntityAIOwnerHurtByTarget extends EntityAITarget
 {
-    EntityTameable theDefendingTameable;
-    EntityLivingBase theOwnerAttacker;
-    private int field_142051_e;
+    EntityTameable tameable;
+    EntityLivingBase attacker;
+    private int timestamp;
 
     public EntityAIOwnerHurtByTarget(EntityTameable theDefendingTameableIn)
     {
         super(theDefendingTameableIn, false);
-        this.theDefendingTameable = theDefendingTameableIn;
+        this.tameable = theDefendingTameableIn;
         this.setMutexBits(1);
     }
 
@@ -21,13 +21,13 @@ public class EntityAIOwnerHurtByTarget extends EntityAITarget
      */
     public boolean shouldExecute()
     {
-        if (!this.theDefendingTameable.isTamed())
+        if (!this.tameable.isTamed())
         {
             return false;
         }
         else
         {
-            EntityLivingBase entitylivingbase = this.theDefendingTameable.getOwner();
+            EntityLivingBase entitylivingbase = this.tameable.getOwner();
 
             if (entitylivingbase == null)
             {
@@ -35,9 +35,9 @@ public class EntityAIOwnerHurtByTarget extends EntityAITarget
             }
             else
             {
-                this.theOwnerAttacker = entitylivingbase.getAITarget();
+                this.attacker = entitylivingbase.getRevengeTarget();
                 int i = entitylivingbase.getRevengeTimer();
-                return i != this.field_142051_e && this.isSuitableTarget(this.theOwnerAttacker, false) && this.theDefendingTameable.shouldAttackEntity(this.theOwnerAttacker, entitylivingbase);
+                return i != this.timestamp && this.isSuitableTarget(this.attacker, false) && this.tameable.shouldAttackEntity(this.attacker, entitylivingbase);
             }
         }
     }
@@ -47,12 +47,12 @@ public class EntityAIOwnerHurtByTarget extends EntityAITarget
      */
     public void startExecuting()
     {
-        this.taskOwner.setAttackTarget(this.theOwnerAttacker);
-        EntityLivingBase entitylivingbase = this.theDefendingTameable.getOwner();
+        this.taskOwner.setAttackTarget(this.attacker);
+        EntityLivingBase entitylivingbase = this.tameable.getOwner();
 
         if (entitylivingbase != null)
         {
-            this.field_142051_e = entitylivingbase.getRevengeTimer();
+            this.timestamp = entitylivingbase.getRevengeTimer();
         }
 
         super.startExecuting();

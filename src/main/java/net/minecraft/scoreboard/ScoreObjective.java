@@ -2,17 +2,17 @@ package net.minecraft.scoreboard;
 
 public class ScoreObjective
 {
-    private final Scoreboard theScoreboard;
+    private final Scoreboard scoreboard;
     private final String name;
 
     /** The ScoreObjectiveCriteria for this objetive */
-    private final IScoreObjectiveCriteria objectiveCriteria;
-    private IScoreObjectiveCriteria.EnumRenderType renderType;
+    private final IScoreCriteria objectiveCriteria;
+    private IScoreCriteria.EnumRenderType renderType;
     private String displayName;
 
-    public ScoreObjective(Scoreboard theScoreboardIn, String nameIn, IScoreObjectiveCriteria objectiveCriteriaIn)
+    public ScoreObjective(Scoreboard scoreboard, String nameIn, IScoreCriteria objectiveCriteriaIn)
     {
-        this.theScoreboard = theScoreboardIn;
+        this.scoreboard = scoreboard;
         this.name = nameIn;
         this.objectiveCriteria = objectiveCriteriaIn;
         this.displayName = nameIn;
@@ -21,7 +21,7 @@ public class ScoreObjective
 
     public Scoreboard getScoreboard()
     {
-        return this.theScoreboard;
+        return this.scoreboard;
     }
 
     public String getName()
@@ -29,7 +29,7 @@ public class ScoreObjective
         return this.name;
     }
 
-    public IScoreObjectiveCriteria getCriteria()
+    public IScoreCriteria getCriteria()
     {
         return this.objectiveCriteria;
     }
@@ -42,17 +42,17 @@ public class ScoreObjective
     public void setDisplayName(String nameIn)
     {
         this.displayName = nameIn;
-        this.theScoreboard.onObjectiveDisplayNameChanged(this);
+        this.scoreboard.onObjectiveDisplayNameChanged(this);
     }
 
-    public IScoreObjectiveCriteria.EnumRenderType getRenderType()
+    public IScoreCriteria.EnumRenderType getRenderType()
     {
         return this.renderType;
     }
 
-    public void setRenderType(IScoreObjectiveCriteria.EnumRenderType type)
+    public void setRenderType(IScoreCriteria.EnumRenderType type)
     {
         this.renderType = type;
-        this.theScoreboard.onObjectiveDisplayNameChanged(this);
+        this.scoreboard.onObjectiveDisplayNameChanged(this);
     }
 }

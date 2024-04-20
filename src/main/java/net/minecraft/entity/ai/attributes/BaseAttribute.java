@@ -1,16 +1,18 @@
 package net.minecraft.entity.ai.attributes;
 
+import javax.annotation.Nullable;
+
 public abstract class BaseAttribute implements IAttribute
 {
-    private final IAttribute field_180373_a;
-    private final String unlocalizedName;
+    private final IAttribute parent;
+    private final String translationKey;
     private final double defaultValue;
     private boolean shouldWatch;
 
-    protected BaseAttribute(IAttribute p_i45892_1_, String unlocalizedNameIn, double defaultValueIn)
+    protected BaseAttribute(@Nullable IAttribute parentIn, String unlocalizedNameIn, double defaultValueIn)
     {
-        this.field_180373_a = p_i45892_1_;
-        this.unlocalizedName = unlocalizedNameIn;
+        this.parent = parentIn;
+        this.translationKey = unlocalizedNameIn;
         this.defaultValue = defaultValueIn;
 
         if (unlocalizedNameIn == null)
@@ -19,9 +21,9 @@ public abstract class BaseAttribute implements IAttribute
         }
     }
 
-    public String getAttributeUnlocalizedName()
+    public String getName()
     {
-        return this.unlocalizedName;
+        return this.translationKey;
     }
 
     public double getDefaultValue()
@@ -40,18 +42,19 @@ public abstract class BaseAttribute implements IAttribute
         return this;
     }
 
-    public IAttribute func_180372_d()
+    @Nullable
+    public IAttribute getParent()
     {
-        return this.field_180373_a;
+        return this.parent;
     }
 
     public int hashCode()
     {
-        return this.unlocalizedName.hashCode();
+        return this.translationKey.hashCode();
     }
 
     public boolean equals(Object p_equals_1_)
     {
-        return p_equals_1_ instanceof IAttribute && this.unlocalizedName.equals(((IAttribute)p_equals_1_).getAttributeUnlocalizedName());
+        return p_equals_1_ instanceof IAttribute && this.translationKey.equals(((IAttribute)p_equals_1_).getName());
     }
 }

@@ -10,22 +10,24 @@ import net.minecraft.dispenser.IBehaviorDispenseItem;
 import net.minecraft.dispenser.IBlockSource;
 import net.minecraft.entity.item.EntityMinecart;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.BlockPos;
+import net.minecraft.util.EnumActionResult;
 import net.minecraft.util.EnumFacing;
+import net.minecraft.util.EnumHand;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 public class ItemMinecart extends Item
 {
-    private static final IBehaviorDispenseItem dispenserMinecartBehavior = new BehaviorDefaultDispenseItem()
+    private static final IBehaviorDispenseItem MINECART_DISPENSER_BEHAVIOR = new BehaviorDefaultDispenseItem()
     {
         private final BehaviorDefaultDispenseItem behaviourDefaultDispenseItem = new BehaviorDefaultDispenseItem();
         public ItemStack dispenseStack(IBlockSource source, ItemStack stack)
         {
-            EnumFacing enumfacing = BlockDispenser.getFacing(source.getBlockMetadata());
+            EnumFacing enumfacing = (EnumFacing)source.getBlockState().getValue(BlockDispenser.FACING);
             World world = source.getWorld();
-            double d0 = source.getX() + (double)enumfacing.getFrontOffsetX() * 1.125D;
-            double d1 = Math.floor(source.getY()) + (double)enumfacing.getFrontOffsetY();
-            double d2 = source.getZ() + (double)enumfacing.getFrontOffsetZ() * 1.125D;
+            double d0 = source.getX() + (double)enumfacing.getXOffset() * 1.125D;
+            double d1 = Math.floor(source.getY()) + (double)enumfacing.getYOffset();
+            double d2 = source.getZ() + (double)enumfacing.getZOffset() * 1.125D;
             BlockPos blockpos = source.getBlockPos().offset(enumfacing);
             IBlockState iblockstate = world.getBlockState(blockpos);
             BlockRailBase.EnumRailDirection blockrailbase$enumraildirection = iblockstate.getBlock() instanceof BlockRailBase ? (BlockRailBase.EnumRailDirection)iblockstate.getValue(((BlockRailBase)iblockstate.getBlock()).getShapeProperty()) : BlockRailBase.EnumRailDirection.NORTH_SOUTH;
@@ -44,7 +46,7 @@ public class ItemMinecart extends Item
             }
             else
             {
-                if (iblockstate.getBlock().getMaterial() != Material.air || !BlockRailBase.isRailBlock(world.getBlockState(blockpos.down())))
+                if (iblockstate.getMaterial() != Material.AIR || !BlockRailBase.isRailBlock(world.getBlockState(blockpos.down())))
                 {
                     return this.behaviourDefaultDispenseItem.dispense(source, stack);
                 }
@@ -62,41 +64,47 @@ public class ItemMinecart extends Item
                 }
             }
 
-            EntityMinecart entityminecart = EntityMinecart.getMinecart(world, d0, d1 + d3, d2, ((ItemMinecart)stack.getItem()).minecartType);
+            EntityMinecart entityminecart = EntityMinecart.create(world, d0, d1 + d3, d2, ((ItemMinecart)stack.getItem()).minecartType);
 
             if (stack.hasDisplayName())
             {
                 entityminecart.setCustomNameTag(stack.getDisplayName());
             }
 
-            world.spawnEntityInWorld(entityminecart);
-            stack.splitStack(1);
+            world.spawnEntity(entityminecart);
+            stack.shrink(1);
             return stack;
         }
         protected void playDispenseSound(IBlockSource source)
         {
-            source.getWorld().playAuxSFX(1000, source.getBlockPos(), 0);
+            source.getWorld().playEvent(1000, source.getBlockPos(), 0);
         }
     };
-    private final EntityMinecart.EnumMinecartType minecartType;
+    private final EntityMinecart.Type minecartType;
 
-    public ItemMinecart(EntityMinecart.EnumMinecartType type)
+    public ItemMinecart(EntityMinecart.Type typeIn)
     {
         this.maxStackSize = 1;
-        this.minecartType = type;
-        this.setCreativeTab(CreativeTabs.tabTransport);
-        BlockDispenser.dispenseBehaviorRegistry.putObject(this, dispenserMinecartBehavior);
+        this.minecartType = typeIn;
+        this.setCreativeTab(CreativeTabs.TRANSPORTATION);
+        BlockDispenser.DISPENSE_BEHAVIOR_REGISTRY.putObject(this, MINECART_DISPENSER_BEHAVIOR);
     }
 
     /**
      * Called when a Block is right-clicked with this Item
      */
-    public boolean onItemUse(ItemStack stack, EntityPlayer playerIn, World worldIn, BlockPos pos, EnumFacing side, float hitX, float hitY, float hitZ)
+    public EnumActionResult onItemUse(EntityPlayer player, World worldIn, BlockPos pos, EnumHand hand, EnumFacing facing, float hitX, float hitY, float hitZ)
     {
         IBlockState iblockstate = worldIn.getBlockState(pos);
 
-        if (BlockRailBase.isRailBlock(iblockstate))
+        if (!BlockRailBase.isRailBlock(iblockstate))
         {
+            return EnumActionResult.FAIL;
+        }
+        else
+        {
+            ItemStack itemstack = player.getHeldItem(hand);
+
             if (!worldIn.isRemote)
             {
                 BlockRailBase.EnumRailDirection blockrailbase$enumraildirection = iblockstate.getBlock() instanceof BlockRailBase ? (BlockRailBase.EnumRailDirection)iblockstate.getValue(((BlockRailBase)iblockstate.getBlock()).getShapeProperty()) : BlockRailBase.EnumRailDirection.NORTH_SOUTH;
@@ -107,22 +115,18 @@ public class ItemMinecart extends Item
                     d0 = 0.5D;
                 }
 
-                EntityMinecart entityminecart = EntityMinecart.getMinecart(worldIn, (double)pos.getX() + 0.5D, (double)pos.getY() + 0.0625D + d0, (double)pos.getZ() + 0.5D, this.minecartType);
+                EntityMinecart entityminecart = EntityMinecart.create(worldIn, (double)pos.getX() + 0.5D, (double)pos.getY() + 0.0625D + d0, (double)pos.getZ() + 0.5D, this.minecartType);
 
-                if (stack.hasDisplayName())
+                if (itemstack.hasDisplayName())
                 {
-                    entityminecart.setCustomNameTag(stack.getDisplayName());
+                    entityminecart.setCustomNameTag(itemstack.getDisplayName());
                 }
 
-                worldIn.spawnEntityInWorld(entityminecart);
+                worldIn.spawnEntity(entityminecart);
             }
 
-            --stack.stackSize;
-            return true;
-        }
-        else
-        {
-            return false;
+            itemstack.shrink(1);
+            return EnumActionResult.SUCCESS;
         }
     }
 }

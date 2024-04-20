@@ -1,12 +1,15 @@
 package net.minecraft.world.chunk.storage;
 
 import java.io.IOException;
+import javax.annotation.Nullable;
 import net.minecraft.world.MinecraftException;
 import net.minecraft.world.World;
 import net.minecraft.world.chunk.Chunk;
 
 public interface IChunkLoader
 {
+    @Nullable
+
     /**
      * Loads the specified(XZ) chunk into the specified world.
      */
@@ -26,8 +29,9 @@ public interface IChunkLoader
     void chunkTick();
 
     /**
-     * Save extra data not associated with any Chunk.  Not saved during autosave, only during world unload.  Currently
-     * unused.
+     * Flushes all pending chunks fully back to disk
      */
-    void saveExtraData();
+    void flush();
+
+    boolean isChunkGeneratedAt(int x, int z);
 }

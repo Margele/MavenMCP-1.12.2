@@ -1,11 +1,17 @@
 package net.minecraft.item;
 
+import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.block.material.Material;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.init.Blocks;
-import net.minecraft.util.BlockPos;
+import net.minecraft.init.SoundEvents;
+import net.minecraft.util.EnumActionResult;
 import net.minecraft.util.EnumFacing;
+import net.minecraft.util.EnumHand;
+import net.minecraft.util.SoundCategory;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 public class ItemFlintAndSteel extends Item
@@ -14,30 +20,36 @@ public class ItemFlintAndSteel extends Item
     {
         this.maxStackSize = 1;
         this.setMaxDamage(64);
-        this.setCreativeTab(CreativeTabs.tabTools);
+        this.setCreativeTab(CreativeTabs.TOOLS);
     }
 
     /**
      * Called when a Block is right-clicked with this Item
      */
-    public boolean onItemUse(ItemStack stack, EntityPlayer playerIn, World worldIn, BlockPos pos, EnumFacing side, float hitX, float hitY, float hitZ)
+    public EnumActionResult onItemUse(EntityPlayer player, World worldIn, BlockPos pos, EnumHand hand, EnumFacing facing, float hitX, float hitY, float hitZ)
     {
-        pos = pos.offset(side);
+        pos = pos.offset(facing);
+        ItemStack itemstack = player.getHeldItem(hand);
 
-        if (!playerIn.canPlayerEdit(pos, side, stack))
+        if (!player.canPlayerEdit(pos, facing, itemstack))
         {
-            return false;
+            return EnumActionResult.FAIL;
         }
         else
         {
-            if (worldIn.getBlockState(pos).getBlock().getMaterial() == Material.air)
+            if (worldIn.getBlockState(pos).getMaterial() == Material.AIR)
             {
-                worldIn.playSoundEffect((double)pos.getX() + 0.5D, (double)pos.getY() + 0.5D, (double)pos.getZ() + 0.5D, "fire.ignite", 1.0F, itemRand.nextFloat() * 0.4F + 0.8F);
-                worldIn.setBlockState(pos, Blocks.fire.getDefaultState());
+                worldIn.playSound(player, pos, SoundEvents.ITEM_FLINTANDSTEEL_USE, SoundCategory.BLOCKS, 1.0F, itemRand.nextFloat() * 0.4F + 0.8F);
+                worldIn.setBlockState(pos, Blocks.FIRE.getDefaultState(), 11);
             }
 
-            stack.damageItem(1, playerIn);
-            return true;
+            if (player instanceof EntityPlayerMP)
+            {
+                CriteriaTriggers.PLACED_BLOCK.trigger((EntityPlayerMP)player, pos, itemstack);
+            }
+
+            itemstack.damageItem(1, player);
+            return EnumActionResult.SUCCESS;
         }
     }
 }

@@ -3,6 +3,7 @@ package net.minecraft.item.crafting;
 import net.minecraft.init.Items;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.NonNullList;
 import net.minecraft.world.World;
 
 public class RecipesMapCloning implements IRecipe
@@ -13,17 +14,17 @@ public class RecipesMapCloning implements IRecipe
     public boolean matches(InventoryCrafting inv, World worldIn)
     {
         int i = 0;
-        ItemStack itemstack = null;
+        ItemStack itemstack = ItemStack.EMPTY;
 
         for (int j = 0; j < inv.getSizeInventory(); ++j)
         {
             ItemStack itemstack1 = inv.getStackInSlot(j);
 
-            if (itemstack1 != null)
+            if (!itemstack1.isEmpty())
             {
-                if (itemstack1.getItem() == Items.filled_map)
+                if (itemstack1.getItem() == Items.FILLED_MAP)
                 {
-                    if (itemstack != null)
+                    if (!itemstack.isEmpty())
                     {
                         return false;
                     }
@@ -32,7 +33,7 @@ public class RecipesMapCloning implements IRecipe
                 }
                 else
                 {
-                    if (itemstack1.getItem() != Items.map)
+                    if (itemstack1.getItem() != Items.MAP)
                     {
                         return false;
                     }
@@ -42,7 +43,7 @@ public class RecipesMapCloning implements IRecipe
             }
         }
 
-        return itemstack != null && i > 0;
+        return !itemstack.isEmpty() && i > 0;
     }
 
     /**
@@ -51,28 +52,28 @@ public class RecipesMapCloning implements IRecipe
     public ItemStack getCraftingResult(InventoryCrafting inv)
     {
         int i = 0;
-        ItemStack itemstack = null;
+        ItemStack itemstack = ItemStack.EMPTY;
 
         for (int j = 0; j < inv.getSizeInventory(); ++j)
         {
             ItemStack itemstack1 = inv.getStackInSlot(j);
 
-            if (itemstack1 != null)
+            if (!itemstack1.isEmpty())
             {
-                if (itemstack1.getItem() == Items.filled_map)
+                if (itemstack1.getItem() == Items.FILLED_MAP)
                 {
-                    if (itemstack != null)
+                    if (!itemstack.isEmpty())
                     {
-                        return null;
+                        return ItemStack.EMPTY;
                     }
 
                     itemstack = itemstack1;
                 }
                 else
                 {
-                    if (itemstack1.getItem() != Items.map)
+                    if (itemstack1.getItem() != Items.MAP)
                     {
-                        return null;
+                        return ItemStack.EMPTY;
                     }
 
                     ++i;
@@ -80,50 +81,68 @@ public class RecipesMapCloning implements IRecipe
             }
         }
 
-        if (itemstack != null && i >= 1)
+        if (!itemstack.isEmpty() && i >= 1)
         {
-            ItemStack itemstack2 = new ItemStack(Items.filled_map, i + 1, itemstack.getMetadata());
+            ItemStack itemstack2 = new ItemStack(Items.FILLED_MAP, i + 1, itemstack.getMetadata());
 
             if (itemstack.hasDisplayName())
             {
                 itemstack2.setStackDisplayName(itemstack.getDisplayName());
             }
 
+            if (itemstack.hasTagCompound())
+            {
+                itemstack2.setTagCompound(itemstack.getTagCompound());
+            }
+
             return itemstack2;
         }
         else
         {
-            return null;
+            return ItemStack.EMPTY;
         }
     }
 
     /**
-     * Returns the size of the recipe area
+     * Get the result of this recipe, usually for display purposes (e.g. recipe book). If your recipe has more than one
+     * possible result (e.g. it's dynamic and depends on its inputs), then return an empty stack.
      */
-    public int getRecipeSize()
-    {
-        return 9;
-    }
-
     public ItemStack getRecipeOutput()
     {
-        return null;
+        return ItemStack.EMPTY;
     }
 
-    public ItemStack[] getRemainingItems(InventoryCrafting inv)
+    public NonNullList<ItemStack> getRemainingItems(InventoryCrafting inv)
     {
-        ItemStack[] aitemstack = new ItemStack[inv.getSizeInventory()];
+        NonNullList<ItemStack> nonnulllist = NonNullList.<ItemStack>withSize(inv.getSizeInventory(), ItemStack.EMPTY);
 
-        for (int i = 0; i < aitemstack.length; ++i)
+        for (int i = 0; i < nonnulllist.size(); ++i)
         {
             ItemStack itemstack = inv.getStackInSlot(i);
 
-            if (itemstack != null && itemstack.getItem().hasContainerItem())
+            if (itemstack.getItem().hasContainerItem())
             {
-                aitemstack[i] = new ItemStack(itemstack.getItem().getContainerItem());
+                nonnulllist.set(i, new ItemStack(itemstack.getItem().getContainerItem()));
             }
         }
 
-        return aitemstack;
+        return nonnulllist;
+    }
+
+    /**
+     * If true, this recipe does not appear in the recipe book and does not respect recipe unlocking (and the
+     * doLimitedCrafting gamerule)
+     */
+    public boolean isDynamic()
+    {
+        return true;
+    }
+
+    /**
+     * Used to determine if this recipe can fit in a grid of the given width/height
+     */
+    public boolean canFit(int width, int height)
+    {
+        return width >= 3 && height >= 3;
     }
 }

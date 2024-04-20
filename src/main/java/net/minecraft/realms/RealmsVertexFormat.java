@@ -1,6 +1,6 @@
 package net.minecraft.realms;
 
-import java.util.ArrayList;
+import com.google.common.collect.Lists;
 import java.util.List;
 import net.minecraft.client.renderer.vertex.VertexFormat;
 import net.minecraft.client.renderer.vertex.VertexFormatElement;
@@ -67,7 +67,7 @@ public class RealmsVertexFormat
 
     public List<RealmsVertexFormatElement> getElements()
     {
-        List<RealmsVertexFormatElement> list = new ArrayList();
+        List<RealmsVertexFormatElement> list = Lists.<RealmsVertexFormatElement>newArrayList();
 
         for (VertexFormatElement vertexformatelement : this.v.getElements())
         {
@@ -84,7 +84,7 @@ public class RealmsVertexFormat
 
     public int getVertexSize()
     {
-        return this.v.getNextOffset();
+        return this.v.getSize();
     }
 
     public int getOffset(int p_getOffset_1_)

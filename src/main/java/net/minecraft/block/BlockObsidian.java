@@ -7,13 +7,15 @@ import net.minecraft.block.state.IBlockState;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.Item;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.IBlockAccess;
 
 public class BlockObsidian extends Block
 {
     public BlockObsidian()
     {
-        super(Material.rock);
-        this.setCreativeTab(CreativeTabs.tabBlock);
+        super(Material.ROCK);
+        this.setCreativeTab(CreativeTabs.BUILDING_BLOCKS);
     }
 
     /**
@@ -21,14 +23,16 @@ public class BlockObsidian extends Block
      */
     public Item getItemDropped(IBlockState state, Random rand, int fortune)
     {
-        return Item.getItemFromBlock(Blocks.obsidian);
+        return Item.getItemFromBlock(Blocks.OBSIDIAN);
     }
 
     /**
      * Get the MapColor for this Block and the given BlockState
+     * @deprecated call via {@link IBlockState#getMapColor(IBlockAccess,BlockPos)} whenever possible.
+     * Implementing/overriding is fine.
      */
-    public MapColor getMapColor(IBlockState state)
+    public MapColor getMapColor(IBlockState state, IBlockAccess worldIn, BlockPos pos)
     {
-        return MapColor.blackColor;
+        return MapColor.BLACK;
     }
 }

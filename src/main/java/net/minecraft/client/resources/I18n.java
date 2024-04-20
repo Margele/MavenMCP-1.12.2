@@ -1,5 +1,7 @@
 package net.minecraft.client.resources;
 
+import java.util.Map;
+
 public class I18n
 {
     private static Locale i18nLocale;
@@ -10,10 +12,20 @@ public class I18n
     }
 
     /**
-     * format(a, b) is equivalent to String.format(translate(a), b). Args: translationKey, params...
+     * Translates the given string and then formats it. Equivilant to String.format(translate(key), parameters).
      */
     public static String format(String translateKey, Object... parameters)
     {
         return i18nLocale.formatMessage(translateKey, parameters);
+    }
+
+    public static boolean hasKey(String key)
+    {
+        return i18nLocale.hasKey(key);
+    }
+
+    public static Map getLocaleProperties()
+    {
+        return i18nLocale.properties;
     }
 }

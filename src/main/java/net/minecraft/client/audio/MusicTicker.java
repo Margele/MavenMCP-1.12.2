@@ -2,9 +2,10 @@ package net.minecraft.client.audio;
 
 import java.util.Random;
 import net.minecraft.client.Minecraft;
+import net.minecraft.init.SoundEvents;
 import net.minecraft.util.ITickable;
-import net.minecraft.util.MathHelper;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.SoundEvent;
+import net.minecraft.util.math.MathHelper;
 
 public class MusicTicker implements ITickable
 {
@@ -27,64 +28,59 @@ public class MusicTicker implements ITickable
 
         if (this.currentMusic != null)
         {
-            if (!musicticker$musictype.getMusicLocation().equals(this.currentMusic.getSoundLocation()))
+            if (!musicticker$musictype.getMusicLocation().getSoundName().equals(this.currentMusic.getSoundLocation()))
             {
                 this.mc.getSoundHandler().stopSound(this.currentMusic);
-                this.timeUntilNextMusic = MathHelper.getRandomIntegerInRange(this.rand, 0, musicticker$musictype.getMinDelay() / 2);
+                this.timeUntilNextMusic = MathHelper.getInt(this.rand, 0, musicticker$musictype.getMinDelay() / 2);
             }
 
             if (!this.mc.getSoundHandler().isSoundPlaying(this.currentMusic))
             {
                 this.currentMusic = null;
-                this.timeUntilNextMusic = Math.min(MathHelper.getRandomIntegerInRange(this.rand, musicticker$musictype.getMinDelay(), musicticker$musictype.getMaxDelay()), this.timeUntilNextMusic);
+                this.timeUntilNextMusic = Math.min(MathHelper.getInt(this.rand, musicticker$musictype.getMinDelay(), musicticker$musictype.getMaxDelay()), this.timeUntilNextMusic);
             }
         }
 
+        this.timeUntilNextMusic = Math.min(this.timeUntilNextMusic, musicticker$musictype.getMaxDelay());
+
         if (this.currentMusic == null && this.timeUntilNextMusic-- <= 0)
         {
-            this.func_181558_a(musicticker$musictype);
+            this.playMusic(musicticker$musictype);
         }
     }
 
-    public void func_181558_a(MusicTicker.MusicType p_181558_1_)
+    /**
+     * Plays a music track for the maximum allowable period of time
+     */
+    public void playMusic(MusicTicker.MusicType requestedMusicType)
     {
-        this.currentMusic = PositionedSoundRecord.create(p_181558_1_.getMusicLocation());
+        this.currentMusic = PositionedSoundRecord.getMusicRecord(requestedMusicType.getMusicLocation());
         this.mc.getSoundHandler().playSound(this.currentMusic);
         this.timeUntilNextMusic = Integer.MAX_VALUE;
     }
 
-    public void func_181557_a()
-    {
-        if (this.currentMusic != null)
-        {
-            this.mc.getSoundHandler().stopSound(this.currentMusic);
-            this.currentMusic = null;
-            this.timeUntilNextMusic = 0;
-        }
-    }
-
     public static enum MusicType
     {
-        MENU(new ResourceLocation("minecraft:music.menu"), 20, 600),
-        GAME(new ResourceLocation("minecraft:music.game"), 12000, 24000),
-        CREATIVE(new ResourceLocation("minecraft:music.game.creative"), 1200, 3600),
-        CREDITS(new ResourceLocation("minecraft:music.game.end.credits"), Integer.MAX_VALUE, Integer.MAX_VALUE),
-        NETHER(new ResourceLocation("minecraft:music.game.nether"), 1200, 3600),
-        END_BOSS(new ResourceLocation("minecraft:music.game.end.dragon"), 0, 0),
-        END(new ResourceLocation("minecraft:music.game.end"), 6000, 24000);
+        MENU(SoundEvents.MUSIC_MENU, 20, 600),
+        GAME(SoundEvents.MUSIC_GAME, 12000, 24000),
+        CREATIVE(SoundEvents.MUSIC_CREATIVE, 1200, 3600),
+        CREDITS(SoundEvents.MUSIC_CREDITS, 0, 0),
+        NETHER(SoundEvents.MUSIC_NETHER, 1200, 3600),
+        END_BOSS(SoundEvents.MUSIC_DRAGON, 0, 0),
+        END(SoundEvents.MUSIC_END, 6000, 24000);
 
-        private final ResourceLocation musicLocation;
+        private final SoundEvent musicLocation;
         private final int minDelay;
         private final int maxDelay;
 
-        private MusicType(ResourceLocation location, int minDelayIn, int maxDelayIn)
+        private MusicType(SoundEvent musicLocationIn, int minDelayIn, int maxDelayIn)
         {
-            this.musicLocation = location;
+            this.musicLocation = musicLocationIn;
             this.minDelay = minDelayIn;
             this.maxDelay = maxDelayIn;
         }
 
-        public ResourceLocation getMusicLocation()
+        public SoundEvent getMusicLocation()
         {
             return this.musicLocation;
         }

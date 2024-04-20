@@ -1,21 +1,21 @@
 package net.minecraft.entity.ai;
 
 import net.minecraft.entity.EntityCreature;
-import net.minecraft.util.BlockPos;
-import net.minecraft.util.Vec3;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.village.Village;
 import net.minecraft.village.VillageDoorInfo;
 
 public class EntityAIMoveIndoors extends EntityAIBase
 {
-    private EntityCreature entityObj;
+    private final EntityCreature entity;
     private VillageDoorInfo doorInfo;
     private int insidePosX = -1;
     private int insidePosZ = -1;
 
-    public EntityAIMoveIndoors(EntityCreature entityObjIn)
+    public EntityAIMoveIndoors(EntityCreature entityIn)
     {
-        this.entityObj = entityObjIn;
+        this.entity = entityIn;
         this.setMutexBits(1);
     }
 
@@ -24,21 +24,21 @@ public class EntityAIMoveIndoors extends EntityAIBase
      */
     public boolean shouldExecute()
     {
-        BlockPos blockpos = new BlockPos(this.entityObj);
+        BlockPos blockpos = new BlockPos(this.entity);
 
-        if ((!this.entityObj.worldObj.isDaytime() || this.entityObj.worldObj.isRaining() && !this.entityObj.worldObj.getBiomeGenForCoords(blockpos).canRain()) && !this.entityObj.worldObj.provider.getHasNoSky())
+        if ((!this.entity.world.isDaytime() || this.entity.world.isRaining() && !this.entity.world.getBiome(blockpos).canRain()) && this.entity.world.provider.hasSkyLight())
         {
-            if (this.entityObj.getRNG().nextInt(50) != 0)
+            if (this.entity.getRNG().nextInt(50) != 0)
             {
                 return false;
             }
-            else if (this.insidePosX != -1 && this.entityObj.getDistanceSq((double)this.insidePosX, this.entityObj.posY, (double)this.insidePosZ) < 4.0D)
+            else if (this.insidePosX != -1 && this.entity.getDistanceSq((double)this.insidePosX, this.entity.posY, (double)this.insidePosZ) < 4.0D)
             {
                 return false;
             }
             else
             {
-                Village village = this.entityObj.worldObj.getVillageCollection().getNearestVillage(blockpos, 14);
+                Village village = this.entity.world.getVillageCollection().getNearestVillage(blockpos, 14);
 
                 if (village == null)
                 {
@@ -60,9 +60,9 @@ public class EntityAIMoveIndoors extends EntityAIBase
     /**
      * Returns whether an in-progress EntityAIBase should continue executing
      */
-    public boolean continueExecuting()
+    public boolean shouldContinueExecuting()
     {
-        return !this.entityObj.getNavigator().noPath();
+        return !this.entity.getNavigator().noPath();
     }
 
     /**
@@ -76,23 +76,23 @@ public class EntityAIMoveIndoors extends EntityAIBase
         int j = blockpos.getY();
         int k = blockpos.getZ();
 
-        if (this.entityObj.getDistanceSq(blockpos) > 256.0D)
+        if (this.entity.getDistanceSq(blockpos) > 256.0D)
         {
-            Vec3 vec3 = RandomPositionGenerator.findRandomTargetBlockTowards(this.entityObj, 14, 3, new Vec3((double)i + 0.5D, (double)j, (double)k + 0.5D));
+            Vec3d vec3d = RandomPositionGenerator.findRandomTargetBlockTowards(this.entity, 14, 3, new Vec3d((double)i + 0.5D, (double)j, (double)k + 0.5D));
 
-            if (vec3 != null)
+            if (vec3d != null)
             {
-                this.entityObj.getNavigator().tryMoveToXYZ(vec3.xCoord, vec3.yCoord, vec3.zCoord, 1.0D);
+                this.entity.getNavigator().tryMoveToXYZ(vec3d.x, vec3d.y, vec3d.z, 1.0D);
             }
         }
         else
         {
-            this.entityObj.getNavigator().tryMoveToXYZ((double)i + 0.5D, (double)j, (double)k + 0.5D, 1.0D);
+            this.entity.getNavigator().tryMoveToXYZ((double)i + 0.5D, (double)j, (double)k + 0.5D, 1.0D);
         }
     }
 
     /**
-     * Resets the task
+     * Reset the task's internal state. Called when this task is interrupted by another one
      */
     public void resetTask()
     {

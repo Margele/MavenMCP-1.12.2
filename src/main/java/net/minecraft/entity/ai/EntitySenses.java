@@ -7,13 +7,13 @@ import net.minecraft.entity.EntityLiving;
 
 public class EntitySenses
 {
-    EntityLiving entityObj;
+    EntityLiving entity;
     List<Entity> seenEntities = Lists.<Entity>newArrayList();
     List<Entity> unseenEntities = Lists.<Entity>newArrayList();
 
-    public EntitySenses(EntityLiving entityObjIn)
+    public EntitySenses(EntityLiving entityIn)
     {
-        this.entityObj = entityObjIn;
+        this.entity = entityIn;
     }
 
     /**
@@ -40,9 +40,9 @@ public class EntitySenses
         }
         else
         {
-            this.entityObj.worldObj.theProfiler.startSection("canSee");
-            boolean flag = this.entityObj.canEntityBeSeen(entityIn);
-            this.entityObj.worldObj.theProfiler.endSection();
+            this.entity.world.profiler.startSection("canSee");
+            boolean flag = this.entity.canEntityBeSeen(entityIn);
+            this.entity.world.profiler.endSection();
 
             if (flag)
             {

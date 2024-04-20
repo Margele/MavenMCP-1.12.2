@@ -1,17 +1,20 @@
 package net.minecraft.client.settings;
 
-import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.util.IntHashMap;
+import org.lwjgl.input.Keyboard;
 
 public class KeyBinding implements Comparable<KeyBinding>
 {
-    private static final List<KeyBinding> keybindArray = Lists.<KeyBinding>newArrayList();
-    private static final IntHashMap<KeyBinding> hash = new IntHashMap();
-    private static final Set<String> keybindSet = Sets.<String>newHashSet();
+    private static final Map<String, KeyBinding> KEYBIND_ARRAY = Maps.<String, KeyBinding>newHashMap();
+    private static final IntHashMap<KeyBinding> HASH = new IntHashMap<KeyBinding>();
+    private static final Set<String> KEYBIND_SET = Sets.<String>newHashSet();
+    private static final Map<String, Integer> CATEGORY_ORDER = Maps.<String, Integer>newHashMap();
     private final String keyDescription;
     private final int keyCodeDefault;
     private final String keyCategory;
@@ -25,7 +28,7 @@ public class KeyBinding implements Comparable<KeyBinding>
     {
         if (keyCode != 0)
         {
-            KeyBinding keybinding = (KeyBinding)hash.lookup(keyCode);
+            KeyBinding keybinding = HASH.lookup(keyCode);
 
             if (keybinding != null)
             {
@@ -38,7 +41,7 @@ public class KeyBinding implements Comparable<KeyBinding>
     {
         if (keyCode != 0)
         {
-            KeyBinding keybinding = (KeyBinding)hash.lookup(keyCode);
+            KeyBinding keybinding = HASH.lookup(keyCode);
 
             if (keybinding != null)
             {
@@ -47,9 +50,27 @@ public class KeyBinding implements Comparable<KeyBinding>
         }
     }
 
+    /**
+     * Completely recalculates whether any keybinds are held, from scratch.
+     */
+    public static void updateKeyBindState()
+    {
+        for (KeyBinding keybinding : KEYBIND_ARRAY.values())
+        {
+            try
+            {
+                setKeyBindState(keybinding.keyCode, keybinding.keyCode < 256 && Keyboard.isKeyDown(keybinding.keyCode));
+            }
+            catch (IndexOutOfBoundsException var3)
+            {
+                ;
+            }
+        }
+    }
+
     public static void unPressAllKeys()
     {
-        for (KeyBinding keybinding : keybindArray)
+        for (KeyBinding keybinding : KEYBIND_ARRAY.values())
         {
             keybinding.unpressKey();
         }
@@ -57,17 +78,17 @@ public class KeyBinding implements Comparable<KeyBinding>
 
     public static void resetKeyBindingArrayAndHash()
     {
-        hash.clearMap();
+        HASH.clearMap();
 
-        for (KeyBinding keybinding : keybindArray)
+        for (KeyBinding keybinding : KEYBIND_ARRAY.values())
         {
-            hash.addKey(keybinding.keyCode, keybinding);
+            HASH.addKey(keybinding.keyCode, keybinding);
         }
     }
 
     public static Set<String> getKeybinds()
     {
-        return keybindSet;
+        return KEYBIND_SET;
     }
 
     public KeyBinding(String description, int keyCode, String category)
@@ -76,9 +97,9 @@ public class KeyBinding implements Comparable<KeyBinding>
         this.keyCode = keyCode;
         this.keyCodeDefault = keyCode;
         this.keyCategory = category;
-        keybindArray.add(this);
-        hash.addKey(keyCode, this);
-        keybindSet.add(category);
+        KEYBIND_ARRAY.put(description, this);
+        HASH.addKey(keyCode, this);
+        KEYBIND_SET.add(category);
     }
 
     /**
@@ -139,13 +160,29 @@ public class KeyBinding implements Comparable<KeyBinding>
 
     public int compareTo(KeyBinding p_compareTo_1_)
     {
-        int i = I18n.format(this.keyCategory, new Object[0]).compareTo(I18n.format(p_compareTo_1_.keyCategory, new Object[0]));
+        return this.keyCategory.equals(p_compareTo_1_.keyCategory) ? I18n.format(this.keyDescription).compareTo(I18n.format(p_compareTo_1_.keyDescription)) : ((Integer)CATEGORY_ORDER.get(this.keyCategory)).compareTo(CATEGORY_ORDER.get(p_compareTo_1_.keyCategory));
+    }
 
-        if (i == 0)
+    public static Supplier<String> getDisplayString(String key)
+    {
+        KeyBinding keybinding = KEYBIND_ARRAY.get(key);
+        return keybinding == null ? () ->
         {
-            i = I18n.format(this.keyDescription, new Object[0]).compareTo(I18n.format(p_compareTo_1_.keyDescription, new Object[0]));
-        }
+            return key;
+        } : () ->
+        {
+            return GameSettings.getKeyDisplayString(keybinding.getKeyCode());
+        };
+    }
 
-        return i;
+    static
+    {
+        CATEGORY_ORDER.put("key.categories.movement", Integer.valueOf(1));
+        CATEGORY_ORDER.put("key.categories.gameplay", Integer.valueOf(2));
+        CATEGORY_ORDER.put("key.categories.inventory", Integer.valueOf(3));
+        CATEGORY_ORDER.put("key.categories.creative", Integer.valueOf(4));
+        CATEGORY_ORDER.put("key.categories.multiplayer", Integer.valueOf(5));
+        CATEGORY_ORDER.put("key.categories.ui", Integer.valueOf(6));
+        CATEGORY_ORDER.put("key.categories.misc", Integer.valueOf(7));
     }
 }

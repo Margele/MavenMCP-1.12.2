@@ -1,31 +1,36 @@
 package net.minecraft.world;
 
-import net.minecraft.util.BlockPos;
-import net.minecraft.util.MathHelper;
-import net.minecraft.util.Vec3;
-import net.minecraft.world.biome.BiomeGenBase;
-import net.minecraft.world.biome.WorldChunkManagerHell;
-import net.minecraft.world.chunk.IChunkProvider;
-import net.minecraft.world.gen.ChunkProviderEnd;
+import javax.annotation.Nullable;
+import net.minecraft.init.Biomes;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.biome.BiomeProviderSingle;
+import net.minecraft.world.end.DragonFightManager;
+import net.minecraft.world.gen.ChunkGeneratorEnd;
+import net.minecraft.world.gen.IChunkGenerator;
 
 public class WorldProviderEnd extends WorldProvider
 {
-    /**
-     * creates a new world chunk manager for WorldProvider
-     */
-    public void registerWorldChunkManager()
-    {
-        this.worldChunkMgr = new WorldChunkManagerHell(BiomeGenBase.sky, 0.0F);
-        this.dimensionId = 1;
-        this.hasNoSky = true;
-    }
+    private DragonFightManager dragonFightManager;
 
     /**
-     * Returns a new chunk provider which generates chunks for this world
+     * Creates a new {@link BiomeProvider} for the WorldProvider, and also sets the values of {@link #hasSkylight} and
+     * {@link #hasNoSky} appropriately.
+     *  
+     * Note that subclasses generally override this method without calling the parent version.
      */
-    public IChunkProvider createChunkGenerator()
+    public void init()
     {
-        return new ChunkProviderEnd(this.worldObj, this.worldObj.getSeed());
+        this.biomeProvider = new BiomeProviderSingle(Biomes.SKY);
+        NBTTagCompound nbttagcompound = this.world.getWorldInfo().getDimensionData(DimensionType.THE_END);
+        this.dragonFightManager = this.world instanceof WorldServer ? new DragonFightManager((WorldServer)this.world, nbttagcompound.getCompoundTag("DragonFight")) : null;
+    }
+
+    public IChunkGenerator createChunkGenerator()
+    {
+        return new ChunkGeneratorEnd(this.world, this.world.getWorldInfo().isMapFeaturesEnabled(), this.world.getSeed(), this.getSpawnCoordinate());
     }
 
     /**
@@ -35,6 +40,8 @@ public class WorldProviderEnd extends WorldProvider
     {
         return 0.0F;
     }
+
+    @Nullable
 
     /**
      * Returns array with sunrise/sunset colors
@@ -47,18 +54,18 @@ public class WorldProviderEnd extends WorldProvider
     /**
      * Return Vec3D with biome specific fog color
      */
-    public Vec3 getFogColor(float p_76562_1_, float p_76562_2_)
+    public Vec3d getFogColor(float p_76562_1_, float p_76562_2_)
     {
         int i = 10518688;
-        float f = MathHelper.cos(p_76562_1_ * (float)Math.PI * 2.0F) * 2.0F + 0.5F;
-        f = MathHelper.clamp_float(f, 0.0F, 1.0F);
-        float f1 = (float)(i >> 16 & 255) / 255.0F;
-        float f2 = (float)(i >> 8 & 255) / 255.0F;
-        float f3 = (float)(i & 255) / 255.0F;
+        float f = MathHelper.cos(p_76562_1_ * ((float)Math.PI * 2F)) * 2.0F + 0.5F;
+        f = MathHelper.clamp(f, 0.0F, 1.0F);
+        float f1 = 0.627451F;
+        float f2 = 0.5019608F;
+        float f3 = 0.627451F;
         f1 = f1 * (f * 0.0F + 0.15F);
         f2 = f2 * (f * 0.0F + 0.15F);
         f3 = f3 * (f * 0.0F + 0.15F);
-        return new Vec3((double)f1, (double)f2, (double)f3);
+        return new Vec3d((double)f1, (double)f2, (double)f3);
     }
 
     public boolean isSkyColored()
@@ -95,7 +102,7 @@ public class WorldProviderEnd extends WorldProvider
      */
     public boolean canCoordinateBeSpawn(int x, int z)
     {
-        return this.worldObj.getGroundAboveSeaLevel(new BlockPos(x, 0, z)).getMaterial().blocksMovement();
+        return this.world.getGroundAboveSeaLevel(new BlockPos(x, 0, z)).getMaterial().blocksMovement();
     }
 
     public BlockPos getSpawnCoordinate()
@@ -113,19 +120,45 @@ public class WorldProviderEnd extends WorldProvider
      */
     public boolean doesXZShowFog(int x, int z)
     {
-        return true;
+        return false;
+    }
+
+    public DimensionType getDimensionType()
+    {
+        return DimensionType.THE_END;
     }
 
     /**
-     * Returns the dimension's name, e.g. "The End", "Nether", or "Overworld".
+     * Called when the world is performing a save. Only used to save the state of the Dragon Boss fight in
+     * WorldProviderEnd in Vanilla.
      */
-    public String getDimensionName()
+    public void onWorldSave()
     {
-        return "The End";
+        NBTTagCompound nbttagcompound = new NBTTagCompound();
+
+        if (this.dragonFightManager != null)
+        {
+            nbttagcompound.setTag("DragonFight", this.dragonFightManager.getCompound());
+        }
+
+        this.world.getWorldInfo().setDimensionData(DimensionType.THE_END, nbttagcompound);
     }
 
-    public String getInternalNameSuffix()
+    /**
+     * Called when the world is updating entities. Only used in WorldProviderEnd to update the DragonFightManager in
+     * Vanilla.
+     */
+    public void onWorldUpdateEntities()
     {
-        return "_end";
+        if (this.dragonFightManager != null)
+        {
+            this.dragonFightManager.tick();
+        }
+    }
+
+    @Nullable
+    public DragonFightManager getDragonFightManager()
+    {
+        return this.dragonFightManager;
     }
 }

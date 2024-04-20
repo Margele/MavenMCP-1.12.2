@@ -1,22 +1,30 @@
 package net.minecraft.block;
 
+import java.util.List;
 import java.util.Random;
+import javax.annotation.Nullable;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.properties.IProperty;
 import net.minecraft.block.properties.PropertyDirection;
 import net.minecraft.block.properties.PropertyEnum;
-import net.minecraft.block.state.BlockState;
+import net.minecraft.block.state.BlockFaceShape;
+import net.minecraft.block.state.BlockStateContainer;
 import net.minecraft.block.state.IBlockState;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.Blocks;
+import net.minecraft.init.Items;
 import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.tileentity.TileEntityPiston;
-import net.minecraft.util.AxisAlignedBB;
-import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.MovingObjectPosition;
-import net.minecraft.util.Vec3;
+import net.minecraft.util.EnumHand;
+import net.minecraft.util.Mirror;
+import net.minecraft.util.Rotation;
+import net.minecraft.util.math.AxisAlignedBB;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.RayTraceResult;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 
@@ -27,10 +35,12 @@ public class BlockPistonMoving extends BlockContainer
 
     public BlockPistonMoving()
     {
-        super(Material.piston);
+        super(Material.PISTON);
         this.setDefaultState(this.blockState.getBaseState().withProperty(FACING, EnumFacing.NORTH).withProperty(TYPE, BlockPistonExtension.EnumPistonType.DEFAULT));
         this.setHardness(-1.0F);
     }
+
+    @Nullable
 
     /**
      * Returns a new instance of a block's tile entity class. Called on placing the block.
@@ -40,11 +50,14 @@ public class BlockPistonMoving extends BlockContainer
         return null;
     }
 
-    public static TileEntity newTileEntity(IBlockState state, EnumFacing facing, boolean extending, boolean renderHead)
+    public static TileEntity createTilePiston(IBlockState blockStateIn, EnumFacing facingIn, boolean extendingIn, boolean shouldHeadBeRenderedIn)
     {
-        return new TileEntityPiston(state, facing, extending, renderHead);
+        return new TileEntityPiston(blockStateIn, facingIn, extendingIn, shouldHeadBeRenderedIn);
     }
 
+    /**
+     * Called serverside after this block is replaced with another in Chunk, but before the Tile Entity is updated
+     */
     public void breakBlock(World worldIn, BlockPos pos, IBlockState state)
     {
         TileEntity tileentity = worldIn.getTileEntity(pos);
@@ -59,13 +72,16 @@ public class BlockPistonMoving extends BlockContainer
         }
     }
 
+    /**
+     * Checks if this block can be placed exactly at the given position.
+     */
     public boolean canPlaceBlockAt(World worldIn, BlockPos pos)
     {
         return false;
     }
 
     /**
-     * Check whether this Block can be placed on the given side
+     * Check whether this Block can be placed at pos, while aiming at the specified side of an adjacent block
      */
     public boolean canPlaceBlockOnSide(World worldIn, BlockPos pos, EnumFacing side)
     {
@@ -73,9 +89,9 @@ public class BlockPistonMoving extends BlockContainer
     }
 
     /**
-     * Called when a player destroys this Block
+     * Called after a player destroys this Block - the posiiton pos may no longer hold the state indicated.
      */
-    public void onBlockDestroyedByPlayer(World worldIn, BlockPos pos, IBlockState state)
+    public void onPlayerDestroy(World worldIn, BlockPos pos, IBlockState state)
     {
         BlockPos blockpos = pos.offset(((EnumFacing)state.getValue(FACING)).getOpposite());
         IBlockState iblockstate = worldIn.getBlockState(blockpos);
@@ -88,18 +104,25 @@ public class BlockPistonMoving extends BlockContainer
 
     /**
      * Used to determine ambient occlusion and culling when rebuilding chunks for render
+     * @deprecated call via {@link IBlockState#isOpaqueCube()} whenever possible. Implementing/overriding is fine.
      */
-    public boolean isOpaqueCube()
+    public boolean isOpaqueCube(IBlockState state)
     {
         return false;
     }
 
-    public boolean isFullCube()
+    /**
+     * @deprecated call via {@link IBlockState#isFullCube()} whenever possible. Implementing/overriding is fine.
+     */
+    public boolean isFullCube(IBlockState state)
     {
         return false;
     }
 
-    public boolean onBlockActivated(World worldIn, BlockPos pos, IBlockState state, EntityPlayer playerIn, EnumFacing side, float hitX, float hitY, float hitZ)
+    /**
+     * Called when the block is right clicked by a player.
+     */
+    public boolean onBlockActivated(World worldIn, BlockPos pos, IBlockState state, EntityPlayer playerIn, EnumHand hand, EnumFacing facing, float hitX, float hitY, float hitZ)
     {
         if (!worldIn.isRemote && worldIn.getTileEntity(pos) == null)
         {
@@ -117,7 +140,7 @@ public class BlockPistonMoving extends BlockContainer
      */
     public Item getItemDropped(IBlockState state, Random rand, int fortune)
     {
-        return null;
+        return Items.AIR;
     }
 
     /**
@@ -127,7 +150,7 @@ public class BlockPistonMoving extends BlockContainer
     {
         if (!worldIn.isRemote)
         {
-            TileEntityPiston tileentitypiston = this.getTileEntity(worldIn, pos);
+            TileEntityPiston tileentitypiston = this.getTilePistonAt(worldIn, pos);
 
             if (tileentitypiston != null)
             {
@@ -137,18 +160,24 @@ public class BlockPistonMoving extends BlockContainer
         }
     }
 
+    @Nullable
+
     /**
      * Ray traces through the blocks collision from start vector to end vector returning a ray trace hit.
+     * @deprecated call via {@link IBlockState#collisionRayTrace(World,BlockPos,Vec3d,Vec3d)} whenever possible.
+     * Implementing/overriding is fine.
      */
-    public MovingObjectPosition collisionRayTrace(World worldIn, BlockPos pos, Vec3 start, Vec3 end)
+    public RayTraceResult collisionRayTrace(IBlockState blockState, World worldIn, BlockPos pos, Vec3d start, Vec3d end)
     {
         return null;
     }
 
     /**
-     * Called when a neighboring block changes.
+     * Called when a neighboring block was changed and marks that this state should perform any checks during a neighbor
+     * change. Cases may include when redstone power is updated, cactus blocks popping off due to a neighboring solid
+     * block, etc.
      */
-    public void onNeighborBlockChange(World worldIn, BlockPos pos, IBlockState state, Block neighborBlock)
+    public void neighborChanged(IBlockState state, World worldIn, BlockPos pos, Block blockIn, BlockPos fromPos)
     {
         if (!worldIn.isRemote)
         {
@@ -156,129 +185,52 @@ public class BlockPistonMoving extends BlockContainer
         }
     }
 
-    public AxisAlignedBB getCollisionBoundingBox(World worldIn, BlockPos pos, IBlockState state)
+    @Nullable
+
+    /**
+     * @deprecated call via {@link IBlockState#getCollisionBoundingBox(IBlockAccess,BlockPos)} whenever possible.
+     * Implementing/overriding is fine.
+     */
+    public AxisAlignedBB getCollisionBoundingBox(IBlockState blockState, IBlockAccess worldIn, BlockPos pos)
     {
-        TileEntityPiston tileentitypiston = this.getTileEntity(worldIn, pos);
-
-        if (tileentitypiston == null)
-        {
-            return null;
-        }
-        else
-        {
-            float f = tileentitypiston.getProgress(0.0F);
-
-            if (tileentitypiston.isExtending())
-            {
-                f = 1.0F - f;
-            }
-
-            return this.getBoundingBox(worldIn, pos, tileentitypiston.getPistonState(), f, tileentitypiston.getFacing());
-        }
+        TileEntityPiston tileentitypiston = this.getTilePistonAt(worldIn, pos);
+        return tileentitypiston == null ? null : tileentitypiston.getAABB(worldIn, pos);
     }
 
-    public void setBlockBoundsBasedOnState(IBlockAccess worldIn, BlockPos pos)
+    public void addCollisionBoxToList(IBlockState state, World worldIn, BlockPos pos, AxisAlignedBB entityBox, List<AxisAlignedBB> collidingBoxes, @Nullable Entity entityIn, boolean isActualState)
     {
-        TileEntityPiston tileentitypiston = this.getTileEntity(worldIn, pos);
+        TileEntityPiston tileentitypiston = this.getTilePistonAt(worldIn, pos);
 
         if (tileentitypiston != null)
         {
-            IBlockState iblockstate = tileentitypiston.getPistonState();
-            Block block = iblockstate.getBlock();
-
-            if (block == this || block.getMaterial() == Material.air)
-            {
-                return;
-            }
-
-            float f = tileentitypiston.getProgress(0.0F);
-
-            if (tileentitypiston.isExtending())
-            {
-                f = 1.0F - f;
-            }
-
-            block.setBlockBoundsBasedOnState(worldIn, pos);
-
-            if (block == Blocks.piston || block == Blocks.sticky_piston)
-            {
-                f = 0.0F;
-            }
-
-            EnumFacing enumfacing = tileentitypiston.getFacing();
-            this.minX = block.getBlockBoundsMinX() - (double)((float)enumfacing.getFrontOffsetX() * f);
-            this.minY = block.getBlockBoundsMinY() - (double)((float)enumfacing.getFrontOffsetY() * f);
-            this.minZ = block.getBlockBoundsMinZ() - (double)((float)enumfacing.getFrontOffsetZ() * f);
-            this.maxX = block.getBlockBoundsMaxX() - (double)((float)enumfacing.getFrontOffsetX() * f);
-            this.maxY = block.getBlockBoundsMaxY() - (double)((float)enumfacing.getFrontOffsetY() * f);
-            this.maxZ = block.getBlockBoundsMaxZ() - (double)((float)enumfacing.getFrontOffsetZ() * f);
+            tileentitypiston.addCollissionAABBs(worldIn, pos, entityBox, collidingBoxes, entityIn);
         }
     }
 
-    public AxisAlignedBB getBoundingBox(World worldIn, BlockPos pos, IBlockState extendingBlock, float progress, EnumFacing direction)
+    /**
+     * @deprecated call via {@link IBlockState#getBoundingBox(IBlockAccess,BlockPos)} whenever possible.
+     * Implementing/overriding is fine.
+     */
+    public AxisAlignedBB getBoundingBox(IBlockState state, IBlockAccess source, BlockPos pos)
     {
-        if (extendingBlock.getBlock() != this && extendingBlock.getBlock().getMaterial() != Material.air)
-        {
-            AxisAlignedBB axisalignedbb = extendingBlock.getBlock().getCollisionBoundingBox(worldIn, pos, extendingBlock);
-
-            if (axisalignedbb == null)
-            {
-                return null;
-            }
-            else
-            {
-                double d0 = axisalignedbb.minX;
-                double d1 = axisalignedbb.minY;
-                double d2 = axisalignedbb.minZ;
-                double d3 = axisalignedbb.maxX;
-                double d4 = axisalignedbb.maxY;
-                double d5 = axisalignedbb.maxZ;
-
-                if (direction.getFrontOffsetX() < 0)
-                {
-                    d0 -= (double)((float)direction.getFrontOffsetX() * progress);
-                }
-                else
-                {
-                    d3 -= (double)((float)direction.getFrontOffsetX() * progress);
-                }
-
-                if (direction.getFrontOffsetY() < 0)
-                {
-                    d1 -= (double)((float)direction.getFrontOffsetY() * progress);
-                }
-                else
-                {
-                    d4 -= (double)((float)direction.getFrontOffsetY() * progress);
-                }
-
-                if (direction.getFrontOffsetZ() < 0)
-                {
-                    d2 -= (double)((float)direction.getFrontOffsetZ() * progress);
-                }
-                else
-                {
-                    d5 -= (double)((float)direction.getFrontOffsetZ() * progress);
-                }
-
-                return new AxisAlignedBB(d0, d1, d2, d3, d4, d5);
-            }
-        }
-        else
-        {
-            return null;
-        }
+        TileEntityPiston tileentitypiston = this.getTilePistonAt(source, pos);
+        return tileentitypiston != null ? tileentitypiston.getAABB(source, pos) : FULL_BLOCK_AABB;
     }
 
-    private TileEntityPiston getTileEntity(IBlockAccess worldIn, BlockPos pos)
+    @Nullable
+
+    /**
+     * Gets a TileEntityPiston at the given position. Returns null if the tile is not an instance of TileEntityPiston.
+     */
+    private TileEntityPiston getTilePistonAt(IBlockAccess iBlockAccessIn, BlockPos blockPosIn)
     {
-        TileEntity tileentity = worldIn.getTileEntity(pos);
+        TileEntity tileentity = iBlockAccessIn.getTileEntity(blockPosIn);
         return tileentity instanceof TileEntityPiston ? (TileEntityPiston)tileentity : null;
     }
 
-    public Item getItem(World worldIn, BlockPos pos)
+    public ItemStack getItem(World worldIn, BlockPos pos, IBlockState state)
     {
-        return null;
+        return ItemStack.EMPTY;
     }
 
     /**
@@ -287,6 +239,27 @@ public class BlockPistonMoving extends BlockContainer
     public IBlockState getStateFromMeta(int meta)
     {
         return this.getDefaultState().withProperty(FACING, BlockPistonExtension.getFacing(meta)).withProperty(TYPE, (meta & 8) > 0 ? BlockPistonExtension.EnumPistonType.STICKY : BlockPistonExtension.EnumPistonType.DEFAULT);
+    }
+
+    /**
+     * Returns the blockstate with the given rotation from the passed blockstate. If inapplicable, returns the passed
+     * blockstate.
+     * @deprecated call via {@link IBlockState#withRotation(Rotation)} whenever possible. Implementing/overriding is
+     * fine.
+     */
+    public IBlockState withRotation(IBlockState state, Rotation rot)
+    {
+        return state.withProperty(FACING, rot.rotate((EnumFacing)state.getValue(FACING)));
+    }
+
+    /**
+     * Returns the blockstate with the given mirror of the passed blockstate. If inapplicable, returns the passed
+     * blockstate.
+     * @deprecated call via {@link IBlockState#withMirror(Mirror)} whenever possible. Implementing/overriding is fine.
+     */
+    public IBlockState withMirror(IBlockState state, Mirror mirrorIn)
+    {
+        return state.withRotation(mirrorIn.toRotation((EnumFacing)state.getValue(FACING)));
     }
 
     /**
@@ -305,8 +278,24 @@ public class BlockPistonMoving extends BlockContainer
         return i;
     }
 
-    protected BlockState createBlockState()
+    protected BlockStateContainer createBlockState()
     {
-        return new BlockState(this, new IProperty[] {FACING, TYPE});
+        return new BlockStateContainer(this, new IProperty[] {FACING, TYPE});
+    }
+
+    /**
+     * Get the geometry of the queried face at the given position and state. This is used to decide whether things like
+     * buttons are allowed to be placed on the face, or how glass panes connect to the face, among other things.
+     * <p>
+     * Common values are {@code SOLID}, which is the default, and {@code UNDEFINED}, which represents something that
+     * does not fit the other descriptions and will generally cause other things not to connect to the face.
+
+     * @return an approximation of the form of the given face
+     * @deprecated call via {@link IBlockState#getBlockFaceShape(IBlockAccess,BlockPos,EnumFacing)} whenever possible.
+     * Implementing/overriding is fine.
+     */
+    public BlockFaceShape getBlockFaceShape(IBlockAccess worldIn, IBlockState state, BlockPos pos, EnumFacing face)
+    {
+        return BlockFaceShape.UNDEFINED;
     }
 }

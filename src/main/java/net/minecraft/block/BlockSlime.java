@@ -4,22 +4,27 @@ import net.minecraft.block.material.MapColor;
 import net.minecraft.block.material.Material;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.Entity;
-import net.minecraft.util.BlockPos;
-import net.minecraft.util.EnumWorldBlockLayer;
+import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.util.BlockRenderLayer;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 public class BlockSlime extends BlockBreakable
 {
     public BlockSlime()
     {
-        super(Material.clay, false, MapColor.grassColor);
-        this.setCreativeTab(CreativeTabs.tabDecorations);
+        super(Material.CLAY, false, MapColor.GRASS);
+        this.setCreativeTab(CreativeTabs.DECORATIONS);
         this.slipperiness = 0.8F;
     }
 
-    public EnumWorldBlockLayer getBlockLayer()
+    /**
+     * Gets the render layer this block will render on. SOLID for solid blocks, CUTOUT or CUTOUT_MIPPED for on-off
+     * transparency (glass, reeds), TRANSLUCENT for fully blended transparency (stained glass)
+     */
+    public BlockRenderLayer getRenderLayer()
     {
-        return EnumWorldBlockLayer.TRANSLUCENT;
+        return BlockRenderLayer.TRANSLUCENT;
     }
 
     /**
@@ -50,13 +55,18 @@ public class BlockSlime extends BlockBreakable
         else if (entityIn.motionY < 0.0D)
         {
             entityIn.motionY = -entityIn.motionY;
+
+            if (!(entityIn instanceof EntityLivingBase))
+            {
+                entityIn.motionY *= 0.8D;
+            }
         }
     }
 
     /**
-     * Triggered whenever an entity collides with this block (enters into the block)
+     * Called when the given entity walks on this Block
      */
-    public void onEntityCollidedWithBlock(World worldIn, BlockPos pos, Entity entityIn)
+    public void onEntityWalk(World worldIn, BlockPos pos, Entity entityIn)
     {
         if (Math.abs(entityIn.motionY) < 0.1D && !entityIn.isSneaking())
         {
@@ -65,6 +75,6 @@ public class BlockSlime extends BlockBreakable
             entityIn.motionZ *= d0;
         }
 
-        super.onEntityCollidedWithBlock(worldIn, pos, entityIn);
+        super.onEntityWalk(worldIn, pos, entityIn);
     }
 }

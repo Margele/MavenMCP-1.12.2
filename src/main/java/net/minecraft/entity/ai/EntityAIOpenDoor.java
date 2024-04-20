@@ -15,16 +15,16 @@ public class EntityAIOpenDoor extends EntityAIDoorInteract
     public EntityAIOpenDoor(EntityLiving entitylivingIn, boolean shouldClose)
     {
         super(entitylivingIn);
-        this.theEntity = entitylivingIn;
+        this.entity = entitylivingIn;
         this.closeDoor = shouldClose;
     }
 
     /**
      * Returns whether an in-progress EntityAIBase should continue executing
      */
-    public boolean continueExecuting()
+    public boolean shouldContinueExecuting()
     {
-        return this.closeDoor && this.closeDoorTemporisation > 0 && super.continueExecuting();
+        return this.closeDoor && this.closeDoorTemporisation > 0 && super.shouldContinueExecuting();
     }
 
     /**
@@ -33,22 +33,22 @@ public class EntityAIOpenDoor extends EntityAIDoorInteract
     public void startExecuting()
     {
         this.closeDoorTemporisation = 20;
-        this.doorBlock.toggleDoor(this.theEntity.worldObj, this.doorPosition, true);
+        this.doorBlock.toggleDoor(this.entity.world, this.doorPosition, true);
     }
 
     /**
-     * Resets the task
+     * Reset the task's internal state. Called when this task is interrupted by another one
      */
     public void resetTask()
     {
         if (this.closeDoor)
         {
-            this.doorBlock.toggleDoor(this.theEntity.worldObj, this.doorPosition, false);
+            this.doorBlock.toggleDoor(this.entity.world, this.doorPosition, false);
         }
     }
 
     /**
-     * Updates the task
+     * Keep ticking a continuous task that has already been started
      */
     public void updateTask()
     {

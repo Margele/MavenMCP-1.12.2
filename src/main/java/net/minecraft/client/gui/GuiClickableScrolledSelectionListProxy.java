@@ -7,17 +7,17 @@ import org.lwjgl.input.Mouse;
 
 public class GuiClickableScrolledSelectionListProxy extends GuiSlot
 {
-    private final RealmsClickableScrolledSelectionList field_178046_u;
+    private final RealmsClickableScrolledSelectionList proxy;
 
-    public GuiClickableScrolledSelectionListProxy(RealmsClickableScrolledSelectionList selectionList, int p_i45526_2_, int p_i45526_3_, int p_i45526_4_, int p_i45526_5_, int p_i45526_6_)
+    public GuiClickableScrolledSelectionListProxy(RealmsClickableScrolledSelectionList selectionList, int widthIn, int heightIn, int topIn, int bottomIn, int slotHeightIn)
     {
-        super(Minecraft.getMinecraft(), p_i45526_2_, p_i45526_3_, p_i45526_4_, p_i45526_5_, p_i45526_6_);
-        this.field_178046_u = selectionList;
+        super(Minecraft.getMinecraft(), widthIn, heightIn, topIn, bottomIn, slotHeightIn);
+        this.proxy = selectionList;
     }
 
     protected int getSize()
     {
-        return this.field_178046_u.getItemCount();
+        return this.proxy.getItemCount();
     }
 
     /**
@@ -25,7 +25,7 @@ public class GuiClickableScrolledSelectionListProxy extends GuiSlot
      */
     protected void elementClicked(int slotIndex, boolean isDoubleClick, int mouseX, int mouseY)
     {
-        this.field_178046_u.selectItem(slotIndex, isDoubleClick, mouseX, mouseY);
+        this.proxy.selectItem(slotIndex, isDoubleClick, mouseX, mouseY);
     }
 
     /**
@@ -33,32 +33,32 @@ public class GuiClickableScrolledSelectionListProxy extends GuiSlot
      */
     protected boolean isSelected(int slotIndex)
     {
-        return this.field_178046_u.isSelectedItem(slotIndex);
+        return this.proxy.isSelectedItem(slotIndex);
     }
 
     protected void drawBackground()
     {
-        this.field_178046_u.renderBackground();
+        this.proxy.renderBackground();
     }
 
-    protected void drawSlot(int entryID, int p_180791_2_, int p_180791_3_, int p_180791_4_, int mouseXIn, int mouseYIn)
+    protected void drawSlot(int slotIndex, int xPos, int yPos, int heightIn, int mouseXIn, int mouseYIn, float partialTicks)
     {
-        this.field_178046_u.renderItem(entryID, p_180791_2_, p_180791_3_, p_180791_4_, mouseXIn, mouseYIn);
+        this.proxy.renderItem(slotIndex, xPos, yPos, heightIn, mouseXIn, mouseYIn);
     }
 
-    public int func_178044_e()
+    public int width()
     {
-        return super.width;
+        return this.width;
     }
 
-    public int func_178042_f()
+    public int mouseY()
     {
-        return super.mouseY;
+        return this.mouseY;
     }
 
-    public int func_178045_g()
+    public int mouseX()
     {
-        return super.mouseX;
+        return this.mouseX;
     }
 
     /**
@@ -66,12 +66,12 @@ public class GuiClickableScrolledSelectionListProxy extends GuiSlot
      */
     protected int getContentHeight()
     {
-        return this.field_178046_u.getMaxPosition();
+        return this.proxy.getMaxPosition();
     }
 
     protected int getScrollBarX()
     {
-        return this.field_178046_u.getScrollbarPosition();
+        return this.proxy.getScrollbarPosition();
     }
 
     public void handleMouseInput()
@@ -80,38 +80,38 @@ public class GuiClickableScrolledSelectionListProxy extends GuiSlot
 
         if (this.scrollMultiplier > 0.0F && Mouse.getEventButtonState())
         {
-            this.field_178046_u.customMouseEvent(this.top, this.bottom, this.headerPadding, this.amountScrolled, this.slotHeight);
+            this.proxy.customMouseEvent(this.top, this.bottom, this.headerPadding, this.amountScrolled, this.slotHeight);
         }
     }
 
-    public void func_178043_a(int p_178043_1_, int p_178043_2_, int p_178043_3_, Tezzelator p_178043_4_)
+    public void renderSelected(int p_178043_1_, int p_178043_2_, int p_178043_3_, Tezzelator p_178043_4_)
     {
-        this.field_178046_u.renderSelected(p_178043_1_, p_178043_2_, p_178043_3_, p_178043_4_);
+        this.proxy.renderSelected(p_178043_1_, p_178043_2_, p_178043_3_, p_178043_4_);
     }
 
     /**
      * Draws the selection box around the selected slot element.
      */
-    protected void drawSelectionBox(int p_148120_1_, int p_148120_2_, int mouseXIn, int mouseYIn)
+    protected void drawSelectionBox(int insideLeft, int insideTop, int mouseXIn, int mouseYIn, float partialTicks)
     {
         int i = this.getSize();
 
         for (int j = 0; j < i; ++j)
         {
-            int k = p_148120_2_ + j * this.slotHeight + this.headerPadding;
+            int k = insideTop + j * this.slotHeight + this.headerPadding;
             int l = this.slotHeight - 4;
 
             if (k > this.bottom || k + l < this.top)
             {
-                this.func_178040_a(j, p_148120_1_, k);
+                this.updateItemPos(j, insideLeft, k, partialTicks);
             }
 
             if (this.showSelectionBox && this.isSelected(j))
             {
-                this.func_178043_a(this.width, k, l, Tezzelator.instance);
+                this.renderSelected(this.width, k, l, Tezzelator.instance);
             }
 
-            this.drawSlot(j, p_148120_1_, k, l, mouseXIn, mouseYIn);
+            this.drawSlot(j, insideLeft, k, l, mouseXIn, mouseYIn, partialTicks);
         }
     }
 }

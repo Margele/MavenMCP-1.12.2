@@ -2,8 +2,9 @@ package net.minecraft.client.audio;
 
 import net.minecraft.entity.item.EntityMinecart;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.MathHelper;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.init.SoundEvents;
+import net.minecraft.util.SoundCategory;
+import net.minecraft.util.math.MathHelper;
 
 public class MovingSoundMinecartRiding extends MovingSound
 {
@@ -12,7 +13,7 @@ public class MovingSoundMinecartRiding extends MovingSound
 
     public MovingSoundMinecartRiding(EntityPlayer playerRiding, EntityMinecart minecart)
     {
-        super(new ResourceLocation("minecraft:minecart.inside"));
+        super(SoundEvents.ENTITY_MINECART_INSIDE, SoundCategory.NEUTRAL);
         this.player = playerRiding;
         this.minecart = minecart;
         this.attenuationType = ISound.AttenuationType.NONE;
@@ -25,13 +26,13 @@ public class MovingSoundMinecartRiding extends MovingSound
      */
     public void update()
     {
-        if (!this.minecart.isDead && this.player.isRiding() && this.player.ridingEntity == this.minecart)
+        if (!this.minecart.isDead && this.player.isRiding() && this.player.getRidingEntity() == this.minecart)
         {
-            float f = MathHelper.sqrt_double(this.minecart.motionX * this.minecart.motionX + this.minecart.motionZ * this.minecart.motionZ);
+            float f = MathHelper.sqrt(this.minecart.motionX * this.minecart.motionX + this.minecart.motionZ * this.minecart.motionZ);
 
             if ((double)f >= 0.01D)
             {
-                this.volume = 0.0F + MathHelper.clamp_float(f, 0.0F, 1.0F) * 0.75F;
+                this.volume = 0.0F + MathHelper.clamp(f, 0.0F, 1.0F) * 0.75F;
             }
             else
             {

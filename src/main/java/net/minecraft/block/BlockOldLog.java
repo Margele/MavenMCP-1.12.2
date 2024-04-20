@@ -1,21 +1,24 @@
 package net.minecraft.block;
 
 import com.google.common.base.Predicate;
-import java.util.List;
+import javax.annotation.Nullable;
 import net.minecraft.block.material.MapColor;
 import net.minecraft.block.properties.IProperty;
 import net.minecraft.block.properties.PropertyEnum;
-import net.minecraft.block.state.BlockState;
+import net.minecraft.block.state.BlockStateContainer;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.NonNullList;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.IBlockAccess;
 
 public class BlockOldLog extends BlockLog
 {
     public static final PropertyEnum<BlockPlanks.EnumType> VARIANT = PropertyEnum.<BlockPlanks.EnumType>create("variant", BlockPlanks.EnumType.class, new Predicate<BlockPlanks.EnumType>()
     {
-        public boolean apply(BlockPlanks.EnumType p_apply_1_)
+        public boolean apply(@Nullable BlockPlanks.EnumType p_apply_1_)
         {
             return p_apply_1_.getMetadata() < 4;
         }
@@ -28,8 +31,10 @@ public class BlockOldLog extends BlockLog
 
     /**
      * Get the MapColor for this Block and the given BlockState
+     * @deprecated call via {@link IBlockState#getMapColor(IBlockAccess,BlockPos)} whenever possible.
+     * Implementing/overriding is fine.
      */
-    public MapColor getMapColor(IBlockState state)
+    public MapColor getMapColor(IBlockState state, IBlockAccess worldIn, BlockPos pos)
     {
         BlockPlanks.EnumType blockplanks$enumtype = (BlockPlanks.EnumType)state.getValue(VARIANT);
 
@@ -49,7 +54,7 @@ public class BlockOldLog extends BlockLog
                         return BlockPlanks.EnumType.DARK_OAK.getMapColor();
 
                     case BIRCH:
-                        return MapColor.quartzColor;
+                        return MapColor.QUARTZ;
 
                     case JUNGLE:
                         return BlockPlanks.EnumType.SPRUCE.getMapColor();
@@ -63,12 +68,12 @@ public class BlockOldLog extends BlockLog
     /**
      * returns a list of blocks with the same ID, but different meta (eg: wood returns 4 blocks)
      */
-    public void getSubBlocks(Item itemIn, CreativeTabs tab, List<ItemStack> list)
+    public void getSubBlocks(CreativeTabs itemIn, NonNullList<ItemStack> items)
     {
-        list.add(new ItemStack(itemIn, 1, BlockPlanks.EnumType.OAK.getMetadata()));
-        list.add(new ItemStack(itemIn, 1, BlockPlanks.EnumType.SPRUCE.getMetadata()));
-        list.add(new ItemStack(itemIn, 1, BlockPlanks.EnumType.BIRCH.getMetadata()));
-        list.add(new ItemStack(itemIn, 1, BlockPlanks.EnumType.JUNGLE.getMetadata()));
+        items.add(new ItemStack(this, 1, BlockPlanks.EnumType.OAK.getMetadata()));
+        items.add(new ItemStack(this, 1, BlockPlanks.EnumType.SPRUCE.getMetadata()));
+        items.add(new ItemStack(this, 1, BlockPlanks.EnumType.BIRCH.getMetadata()));
+        items.add(new ItemStack(this, 1, BlockPlanks.EnumType.JUNGLE.getMetadata()));
     }
 
     /**
@@ -126,12 +131,12 @@ public class BlockOldLog extends BlockLog
         return i;
     }
 
-    protected BlockState createBlockState()
+    protected BlockStateContainer createBlockState()
     {
-        return new BlockState(this, new IProperty[] {VARIANT, LOG_AXIS});
+        return new BlockStateContainer(this, new IProperty[] {VARIANT, LOG_AXIS});
     }
 
-    protected ItemStack createStackedBlock(IBlockState state)
+    protected ItemStack getSilkTouchDrop(IBlockState state)
     {
         return new ItemStack(Item.getItemFromBlock(this), 1, ((BlockPlanks.EnumType)state.getValue(VARIANT)).getMetadata());
     }

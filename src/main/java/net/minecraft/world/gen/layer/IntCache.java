@@ -6,14 +6,14 @@ import java.util.List;
 public class IntCache
 {
     private static int intCacheSize = 256;
-    private static List<int[]> freeSmallArrays = Lists.<int[]>newArrayList();
-    private static List<int[]> inUseSmallArrays = Lists.<int[]>newArrayList();
-    private static List<int[]> freeLargeArrays = Lists.<int[]>newArrayList();
-    private static List<int[]> inUseLargeArrays = Lists.<int[]>newArrayList();
+    private static final List<int[]> freeSmallArrays = Lists.<int[]>newArrayList();
+    private static final List<int[]> inUseSmallArrays = Lists.<int[]>newArrayList();
+    private static final List<int[]> freeLargeArrays = Lists.<int[]>newArrayList();
+    private static final List<int[]> inUseLargeArrays = Lists.<int[]>newArrayList();
 
-    public static synchronized int[] getIntCache(int p_76445_0_)
+    public static synchronized int[] getIntCache(int size)
     {
-        if (p_76445_0_ <= 256)
+        if (size <= 256)
         {
             if (freeSmallArrays.isEmpty())
             {
@@ -23,14 +23,14 @@ public class IntCache
             }
             else
             {
-                int[] aint3 = (int[])freeSmallArrays.remove(freeSmallArrays.size() - 1);
+                int[] aint3 = freeSmallArrays.remove(freeSmallArrays.size() - 1);
                 inUseSmallArrays.add(aint3);
                 return aint3;
             }
         }
-        else if (p_76445_0_ > intCacheSize)
+        else if (size > intCacheSize)
         {
-            intCacheSize = p_76445_0_;
+            intCacheSize = size;
             freeLargeArrays.clear();
             inUseLargeArrays.clear();
             int[] aint2 = new int[intCacheSize];
@@ -45,7 +45,7 @@ public class IntCache
         }
         else
         {
-            int[] aint = (int[])freeLargeArrays.remove(freeLargeArrays.size() - 1);
+            int[] aint = freeLargeArrays.remove(freeLargeArrays.size() - 1);
             inUseLargeArrays.add(aint);
             return aint;
         }

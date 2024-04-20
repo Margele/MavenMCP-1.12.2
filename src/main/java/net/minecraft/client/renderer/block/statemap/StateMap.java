@@ -5,10 +5,11 @@ import com.google.common.collect.Maps;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import net.minecraft.block.Block;
 import net.minecraft.block.properties.IProperty;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.client.resources.model.ModelResourceLocation;
+import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.util.ResourceLocation;
 
 public class StateMap extends StateMapperBase
@@ -17,7 +18,7 @@ public class StateMap extends StateMapperBase
     private final String suffix;
     private final List < IProperty<? >> ignored;
 
-    private StateMap(IProperty<?> name, String suffix, List < IProperty<? >> ignored)
+    private StateMap(@Nullable IProperty<?> name, @Nullable String suffix, List < IProperty<? >> ignored)
     {
         this.name = name;
         this.suffix = suffix;
@@ -26,16 +27,16 @@ public class StateMap extends StateMapperBase
 
     protected ModelResourceLocation getModelResourceLocation(IBlockState state)
     {
-        Map<IProperty, Comparable> map = Maps.<IProperty, Comparable>newLinkedHashMap(state.getProperties());
+        Map < IProperty<?>, Comparable<? >> map = Maps. < IProperty<?>, Comparable<? >> newLinkedHashMap(state.getProperties());
         String s;
 
         if (this.name == null)
         {
-            s = ((ResourceLocation)Block.blockRegistry.getNameForObject(state.getBlock())).toString();
+            s = ((ResourceLocation)Block.REGISTRY.getNameForObject(state.getBlock())).toString();
         }
         else
         {
-            s = ((IProperty)this.name).getName((Comparable)map.remove(this.name));
+            s = this.removeName(this.name, map);
         }
 
         if (this.suffix != null)
@@ -49,6 +50,11 @@ public class StateMap extends StateMapperBase
         }
 
         return new ModelResourceLocation(s, this.getPropertyString(map));
+    }
+
+    private <T extends Comparable<T>> String removeName(IProperty<T> property, Map < IProperty<?>, Comparable<? >> values)
+    {
+        return property.getName((T)values.remove(this.name));
     }
 
     public static class Builder
@@ -69,9 +75,9 @@ public class StateMap extends StateMapperBase
             return this;
         }
 
-        public StateMap.Builder ignore(IProperty<?>... p_178442_1_)
+        public StateMap.Builder ignore(IProperty<?>... ignores)
         {
-            Collections.addAll(this.ignored, p_178442_1_);
+            Collections.addAll(this.ignored, ignores);
             return this;
         }
 

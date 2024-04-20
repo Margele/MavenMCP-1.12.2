@@ -3,42 +3,37 @@ package net.minecraft.enchantment;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.EnumCreatureAttribute;
+import net.minecraft.init.MobEffects;
+import net.minecraft.inventory.EntityEquipmentSlot;
 import net.minecraft.item.ItemAxe;
 import net.minecraft.item.ItemStack;
-import net.minecraft.potion.Potion;
 import net.minecraft.potion.PotionEffect;
-import net.minecraft.util.ResourceLocation;
 
 public class EnchantmentDamage extends Enchantment
 {
-    /** Holds the name to be translated of each protection type. */
-    private static final String[] protectionName = new String[] {"all", "undead", "arthropods"};
+    /** None */
+    private static final String[] DAMAGE_NAMES = new String[] {"all", "undead", "arthropods"};
 
     /**
      * Holds the base factor of enchantability needed to be able to use the enchant.
      */
-    private static final int[] baseEnchantability = new int[] {1, 5, 5};
+    private static final int[] MIN_COST = new int[] {1, 5, 5};
 
-    /**
-     * Holds how much each level increased the enchantability factor to be able to use this enchant.
-     */
-    private static final int[] levelEnchantability = new int[] {11, 8, 8};
+    /** None */
+    private static final int[] LEVEL_COST = new int[] {11, 8, 8};
 
-    /**
-     * Used on the formula of base enchantability, this is the 'window' factor of values to be able to use thing
-     * enchant.
-     */
-    private static final int[] thresholdEnchantability = new int[] {20, 20, 20};
+    /** None */
+    private static final int[] LEVEL_COST_SPAN = new int[] {20, 20, 20};
 
     /**
      * Defines the type of damage of the enchantment, 0 = all, 1 = undead, 3 = arthropods
      */
     public final int damageType;
 
-    public EnchantmentDamage(int enchID, ResourceLocation enchName, int enchWeight, int classification)
+    public EnchantmentDamage(Enchantment.Rarity rarityIn, int damageTypeIn, EntityEquipmentSlot... slots)
     {
-        super(enchID, enchName, enchWeight, EnumEnchantmentType.WEAPON);
-        this.damageType = classification;
+        super(rarityIn, EnumEnchantmentType.WEAPON, slots);
+        this.damageType = damageTypeIn;
     }
 
     /**
@@ -46,7 +41,7 @@ public class EnchantmentDamage extends Enchantment
      */
     public int getMinEnchantability(int enchantmentLevel)
     {
-        return baseEnchantability[this.damageType] + (enchantmentLevel - 1) * levelEnchantability[this.damageType];
+        return MIN_COST[this.damageType] + (enchantmentLevel - 1) * LEVEL_COST[this.damageType];
     }
 
     /**
@@ -54,7 +49,7 @@ public class EnchantmentDamage extends Enchantment
      */
     public int getMaxEnchantability(int enchantmentLevel)
     {
-        return this.getMinEnchantability(enchantmentLevel) + thresholdEnchantability[this.damageType];
+        return this.getMinEnchantability(enchantmentLevel) + LEVEL_COST_SPAN[this.damageType];
     }
 
     /**
@@ -71,7 +66,18 @@ public class EnchantmentDamage extends Enchantment
      */
     public float calcDamageByCreature(int level, EnumCreatureAttribute creatureType)
     {
-        return this.damageType == 0 ? (float)level * 1.25F : (this.damageType == 1 && creatureType == EnumCreatureAttribute.UNDEAD ? (float)level * 2.5F : (this.damageType == 2 && creatureType == EnumCreatureAttribute.ARTHROPOD ? (float)level * 2.5F : 0.0F));
+        if (this.damageType == 0)
+        {
+            return 1.0F + (float)Math.max(0, level - 1) * 0.5F;
+        }
+        else if (this.damageType == 1 && creatureType == EnumCreatureAttribute.UNDEAD)
+        {
+            return (float)level * 2.5F;
+        }
+        else
+        {
+            return this.damageType == 2 && creatureType == EnumCreatureAttribute.ARTHROPOD ? (float)level * 2.5F : 0.0F;
+        }
     }
 
     /**
@@ -79,7 +85,7 @@ public class EnchantmentDamage extends Enchantment
      */
     public String getName()
     {
-        return "enchantment.damage." + protectionName[this.damageType];
+        return "enchantment.damage." + DAMAGE_NAMES[this.damageType];
     }
 
     /**
@@ -110,7 +116,7 @@ public class EnchantmentDamage extends Enchantment
             if (this.damageType == 2 && entitylivingbase.getCreatureAttribute() == EnumCreatureAttribute.ARTHROPOD)
             {
                 int i = 20 + user.getRNG().nextInt(10 * level);
-                entitylivingbase.addPotionEffect(new PotionEffect(Potion.moveSlowdown.id, i, 3));
+                entitylivingbase.addPotionEffect(new PotionEffect(MobEffects.SLOWNESS, i, 3));
             }
         }
     }

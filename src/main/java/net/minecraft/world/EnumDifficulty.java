@@ -7,35 +7,35 @@ public enum EnumDifficulty
     NORMAL(2, "options.difficulty.normal"),
     HARD(3, "options.difficulty.hard");
 
-    private static final EnumDifficulty[] difficultyEnums = new EnumDifficulty[values().length];
-    private final int difficultyId;
-    private final String difficultyResourceKey;
+    private static final EnumDifficulty[] ID_MAPPING = new EnumDifficulty[values().length];
+    private final int id;
+    private final String translationKey;
 
     private EnumDifficulty(int difficultyIdIn, String difficultyResourceKeyIn)
     {
-        this.difficultyId = difficultyIdIn;
-        this.difficultyResourceKey = difficultyResourceKeyIn;
+        this.id = difficultyIdIn;
+        this.translationKey = difficultyResourceKeyIn;
     }
 
-    public int getDifficultyId()
+    public int getId()
     {
-        return this.difficultyId;
+        return this.id;
     }
 
-    public static EnumDifficulty getDifficultyEnum(int p_151523_0_)
+    public static EnumDifficulty byId(int id)
     {
-        return difficultyEnums[p_151523_0_ % difficultyEnums.length];
+        return ID_MAPPING[id % ID_MAPPING.length];
     }
 
-    public String getDifficultyResourceKey()
+    public String getTranslationKey()
     {
-        return this.difficultyResourceKey;
+        return this.translationKey;
     }
 
     static {
         for (EnumDifficulty enumdifficulty : values())
         {
-            difficultyEnums[enumdifficulty.difficultyId] = enumdifficulty;
+            ID_MAPPING[enumdifficulty.id] = enumdifficulty;
         }
     }
 }

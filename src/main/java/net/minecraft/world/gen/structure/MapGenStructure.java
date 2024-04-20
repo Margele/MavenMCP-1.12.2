@@ -1,18 +1,19 @@
 package net.minecraft.world.gen.structure;
 
-import com.google.common.collect.Maps;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 import java.util.Random;
-import java.util.concurrent.Callable;
+import javax.annotation.Nullable;
 import net.minecraft.crash.CrashReport;
 import net.minecraft.crash.CrashReportCategory;
+import net.minecraft.crash.ICrashReportDetail;
 import net.minecraft.nbt.NBTBase;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.util.BlockPos;
 import net.minecraft.util.ReportedException;
-import net.minecraft.world.ChunkCoordIntPair;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 import net.minecraft.world.chunk.ChunkPrimer;
 import net.minecraft.world.gen.MapGenBase;
@@ -20,18 +21,18 @@ import net.minecraft.world.gen.MapGenBase;
 public abstract class MapGenStructure extends MapGenBase
 {
     private MapGenStructureData structureData;
-    protected Map<Long, StructureStart> structureMap = Maps.<Long, StructureStart>newHashMap();
+    protected Long2ObjectMap<StructureStart> structureMap = new Long2ObjectOpenHashMap<StructureStart>(1024);
 
     public abstract String getStructureName();
 
     /**
      * Recursively called by generate()
      */
-    protected final void recursiveGenerate(World worldIn, final int chunkX, final int chunkZ, int p_180701_4_, int p_180701_5_, ChunkPrimer chunkPrimerIn)
+    protected final synchronized void recursiveGenerate(World worldIn, final int chunkX, final int chunkZ, int originalX, int originalZ, ChunkPrimer chunkPrimerIn)
     {
         this.initializeStructureData(worldIn);
 
-        if (!this.structureMap.containsKey(Long.valueOf(ChunkCoordIntPair.chunkXZ2Int(chunkX, chunkZ))))
+        if (!this.structureMap.containsKey(ChunkPos.asLong(chunkX, chunkZ)))
         {
             this.rand.nextInt();
 
@@ -40,30 +41,34 @@ public abstract class MapGenStructure extends MapGenBase
                 if (this.canSpawnStructureAtCoords(chunkX, chunkZ))
                 {
                     StructureStart structurestart = this.getStructureStart(chunkX, chunkZ);
-                    this.structureMap.put(Long.valueOf(ChunkCoordIntPair.chunkXZ2Int(chunkX, chunkZ)), structurestart);
-                    this.setStructureStart(chunkX, chunkZ, structurestart);
+                    this.structureMap.put(ChunkPos.asLong(chunkX, chunkZ), structurestart);
+
+                    if (structurestart.isSizeableStructure())
+                    {
+                        this.setStructureStart(chunkX, chunkZ, structurestart);
+                    }
                 }
             }
             catch (Throwable throwable)
             {
                 CrashReport crashreport = CrashReport.makeCrashReport(throwable, "Exception preparing structure feature");
                 CrashReportCategory crashreportcategory = crashreport.makeCategory("Feature being prepared");
-                crashreportcategory.addCrashSectionCallable("Is feature chunk", new Callable<String>()
+                crashreportcategory.addDetail("Is feature chunk", new ICrashReportDetail<String>()
                 {
                     public String call() throws Exception
                     {
                         return MapGenStructure.this.canSpawnStructureAtCoords(chunkX, chunkZ) ? "True" : "False";
                     }
                 });
-                crashreportcategory.addCrashSection("Chunk location", String.format("%d,%d", new Object[] {Integer.valueOf(chunkX), Integer.valueOf(chunkZ)}));
-                crashreportcategory.addCrashSectionCallable("Chunk pos hash", new Callable<String>()
+                crashreportcategory.addCrashSection("Chunk location", String.format("%d,%d", chunkX, chunkZ));
+                crashreportcategory.addDetail("Chunk pos hash", new ICrashReportDetail<String>()
                 {
                     public String call() throws Exception
                     {
-                        return String.valueOf(ChunkCoordIntPair.chunkXZ2Int(chunkX, chunkZ));
+                        return String.valueOf(ChunkPos.asLong(chunkX, chunkZ));
                     }
                 });
-                crashreportcategory.addCrashSectionCallable("Structure type", new Callable<String>()
+                crashreportcategory.addDetail("Structure type", new ICrashReportDetail<String>()
                 {
                     public String call() throws Exception
                     {
@@ -75,19 +80,22 @@ public abstract class MapGenStructure extends MapGenBase
         }
     }
 
-    public boolean generateStructure(World worldIn, Random randomIn, ChunkCoordIntPair chunkCoord)
+    public synchronized boolean generateStructure(World worldIn, Random randomIn, ChunkPos chunkCoord)
     {
         this.initializeStructureData(worldIn);
-        int i = (chunkCoord.chunkXPos << 4) + 8;
-        int j = (chunkCoord.chunkZPos << 4) + 8;
+        int i = (chunkCoord.x << 4) + 8;
+        int j = (chunkCoord.z << 4) + 8;
         boolean flag = false;
+        ObjectIterator objectiterator = this.structureMap.values().iterator();
 
-        for (StructureStart structurestart : this.structureMap.values())
+        while (objectiterator.hasNext())
         {
-            if (structurestart.isSizeableStructure() && structurestart.func_175788_a(chunkCoord) && structurestart.getBoundingBox().intersectsWith(i, j, i + 15, j + 15))
+            StructureStart structurestart = (StructureStart)objectiterator.next();
+
+            if (structurestart.isSizeableStructure() && structurestart.isValidForPostProcess(chunkCoord) && structurestart.getBoundingBox().intersectsWith(i, j, i + 15, j + 15))
             {
                 structurestart.generateStructure(worldIn, randomIn, new StructureBoundingBox(i, j, i + 15, j + 15));
-                structurestart.func_175787_b(chunkCoord);
+                structurestart.notifyPostProcessAt(chunkCoord);
                 flag = true;
                 this.setStructureStart(structurestart.getChunkPosX(), structurestart.getChunkPosZ(), structurestart);
             }
@@ -96,18 +104,29 @@ public abstract class MapGenStructure extends MapGenBase
         return flag;
     }
 
-    public boolean func_175795_b(BlockPos pos)
+    public boolean isInsideStructure(BlockPos pos)
     {
-        this.initializeStructureData(this.worldObj);
-        return this.func_175797_c(pos) != null;
+        if (this.world == null)
+        {
+            return false;
+        }
+        else
+        {
+            this.initializeStructureData(this.world);
+            return this.getStructureAt(pos) != null;
+        }
     }
 
-    protected StructureStart func_175797_c(BlockPos pos)
+    @Nullable
+    protected StructureStart getStructureAt(BlockPos pos)
     {
-        label24:
+        ObjectIterator objectiterator = this.structureMap.values().iterator();
+        label31:
 
-        for (StructureStart structurestart : this.structureMap.values())
+        while (objectiterator.hasNext())
         {
+            StructureStart structurestart = (StructureStart)objectiterator.next();
+
             if (structurestart.isSizeableStructure() && structurestart.getBoundingBox().isVecInside(pos))
             {
                 Iterator<StructureComponent> iterator = structurestart.getComponents().iterator();
@@ -116,10 +135,10 @@ public abstract class MapGenStructure extends MapGenBase
                 {
                     if (!iterator.hasNext())
                     {
-                        continue label24;
+                        continue label31;
                     }
 
-                    StructureComponent structurecomponent = (StructureComponent)iterator.next();
+                    StructureComponent structurecomponent = iterator.next();
 
                     if (structurecomponent.getBoundingBox().isVecInside(pos))
                     {
@@ -137,9 +156,12 @@ public abstract class MapGenStructure extends MapGenBase
     public boolean isPositionInStructure(World worldIn, BlockPos pos)
     {
         this.initializeStructureData(worldIn);
+        ObjectIterator objectiterator = this.structureMap.values().iterator();
 
-        for (StructureStart structurestart : this.structureMap.values())
+        while (objectiterator.hasNext())
         {
+            StructureStart structurestart = (StructureStart)objectiterator.next();
+
             if (structurestart.isSizeableStructure() && structurestart.getBoundingBox().isVecInside(pos))
             {
                 return true;
@@ -149,83 +171,19 @@ public abstract class MapGenStructure extends MapGenBase
         return false;
     }
 
-    public BlockPos getClosestStrongholdPos(World worldIn, BlockPos pos)
+    @Nullable
+    public abstract BlockPos getNearestStructurePos(World worldIn, BlockPos pos, boolean findUnexplored);
+
+    protected void initializeStructureData(World worldIn)
     {
-        this.worldObj = worldIn;
-        this.initializeStructureData(worldIn);
-        this.rand.setSeed(worldIn.getSeed());
-        long i = this.rand.nextLong();
-        long j = this.rand.nextLong();
-        long k = (long)(pos.getX() >> 4) * i;
-        long l = (long)(pos.getZ() >> 4) * j;
-        this.rand.setSeed(k ^ l ^ worldIn.getSeed());
-        this.recursiveGenerate(worldIn, pos.getX() >> 4, pos.getZ() >> 4, 0, 0, (ChunkPrimer)null);
-        double d0 = Double.MAX_VALUE;
-        BlockPos blockpos = null;
-
-        for (StructureStart structurestart : this.structureMap.values())
+        if (this.structureData == null && worldIn != null)
         {
-            if (structurestart.isSizeableStructure())
-            {
-                StructureComponent structurecomponent = (StructureComponent)structurestart.getComponents().get(0);
-                BlockPos blockpos1 = structurecomponent.getBoundingBoxCenter();
-                double d1 = blockpos1.distanceSq(pos);
-
-                if (d1 < d0)
-                {
-                    d0 = d1;
-                    blockpos = blockpos1;
-                }
-            }
-        }
-
-        if (blockpos != null)
-        {
-            return blockpos;
-        }
-        else
-        {
-            List<BlockPos> list = this.getCoordList();
-
-            if (list != null)
-            {
-                BlockPos blockpos2 = null;
-
-                for (BlockPos blockpos3 : list)
-                {
-                    double d2 = blockpos3.distanceSq(pos);
-
-                    if (d2 < d0)
-                    {
-                        d0 = d2;
-                        blockpos2 = blockpos3;
-                    }
-                }
-
-                return blockpos2;
-            }
-            else
-            {
-                return null;
-            }
-        }
-    }
-
-    protected List<BlockPos> getCoordList()
-    {
-        return null;
-    }
-
-    private void initializeStructureData(World worldIn)
-    {
-        if (this.structureData == null)
-        {
-            this.structureData = (MapGenStructureData)worldIn.loadItemData(MapGenStructureData.class, this.getStructureName());
+            this.structureData = (MapGenStructureData)worldIn.loadData(MapGenStructureData.class, this.getStructureName());
 
             if (this.structureData == null)
             {
                 this.structureData = new MapGenStructureData(this.getStructureName());
-                worldIn.setItemData(this.getStructureName(), this.structureData);
+                worldIn.setData(this.getStructureName(), this.structureData);
             }
             else
             {
@@ -247,7 +205,7 @@ public abstract class MapGenStructure extends MapGenBase
 
                             if (structurestart != null)
                             {
-                                this.structureMap.put(Long.valueOf(ChunkCoordIntPair.chunkXZ2Int(i, j)), structurestart);
+                                this.structureMap.put(ChunkPos.asLong(i, j), structurestart);
                             }
                         }
                     }
@@ -265,4 +223,79 @@ public abstract class MapGenStructure extends MapGenBase
     protected abstract boolean canSpawnStructureAtCoords(int chunkX, int chunkZ);
 
     protected abstract StructureStart getStructureStart(int chunkX, int chunkZ);
+
+    protected static BlockPos findNearestStructurePosBySpacing(World worldIn, MapGenStructure structureType, BlockPos startPos, int distanceStep, int stepOffset, int randomSeedZ, boolean addExtraRandomness, int maxAttempts, boolean findUnexplored)
+    {
+        int i = startPos.getX() >> 4;
+        int j = startPos.getZ() >> 4;
+        int k = 0;
+
+        for (Random random = new Random(); k <= maxAttempts; ++k)
+        {
+            for (int l = -k; l <= k; ++l)
+            {
+                boolean flag = l == -k || l == k;
+
+                for (int i1 = -k; i1 <= k; ++i1)
+                {
+                    boolean flag1 = i1 == -k || i1 == k;
+
+                    if (flag || flag1)
+                    {
+                        int j1 = i + distanceStep * l;
+                        int k1 = j + distanceStep * i1;
+
+                        if (j1 < 0)
+                        {
+                            j1 -= distanceStep - 1;
+                        }
+
+                        if (k1 < 0)
+                        {
+                            k1 -= distanceStep - 1;
+                        }
+
+                        int l1 = j1 / distanceStep;
+                        int i2 = k1 / distanceStep;
+                        Random random1 = worldIn.setRandomSeed(l1, i2, randomSeedZ);
+                        l1 = l1 * distanceStep;
+                        i2 = i2 * distanceStep;
+
+                        if (addExtraRandomness)
+                        {
+                            l1 = l1 + (random1.nextInt(distanceStep - stepOffset) + random1.nextInt(distanceStep - stepOffset)) / 2;
+                            i2 = i2 + (random1.nextInt(distanceStep - stepOffset) + random1.nextInt(distanceStep - stepOffset)) / 2;
+                        }
+                        else
+                        {
+                            l1 = l1 + random1.nextInt(distanceStep - stepOffset);
+                            i2 = i2 + random1.nextInt(distanceStep - stepOffset);
+                        }
+
+                        MapGenBase.setupChunkSeed(worldIn.getSeed(), random, l1, i2);
+                        random.nextInt();
+
+                        if (structureType.canSpawnStructureAtCoords(l1, i2))
+                        {
+                            if (!findUnexplored || !worldIn.isChunkGeneratedAt(l1, i2))
+                            {
+                                return new BlockPos((l1 << 4) + 8, 64, (i2 << 4) + 8);
+                            }
+                        }
+                        else if (k == 0)
+                        {
+                            break;
+                        }
+                    }
+                }
+
+                if (k == 0)
+                {
+                    break;
+                }
+            }
+        }
+
+        return null;
+    }
 }

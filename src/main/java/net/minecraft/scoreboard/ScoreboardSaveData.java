@@ -3,15 +3,15 @@ package net.minecraft.scoreboard;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.nbt.NBTTagString;
-import net.minecraft.util.EnumChatFormatting;
-import net.minecraft.world.WorldSavedData;
+import net.minecraft.util.text.TextFormatting;
+import net.minecraft.world.storage.WorldSavedData;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 public class ScoreboardSaveData extends WorldSavedData
 {
-    private static final Logger logger = LogManager.getLogger();
-    private Scoreboard theScoreboard;
+    private static final Logger LOGGER = LogManager.getLogger();
+    private Scoreboard scoreboard;
     private NBTTagCompound delayedInitNbt;
 
     public ScoreboardSaveData()
@@ -26,7 +26,7 @@ public class ScoreboardSaveData extends WorldSavedData
 
     public void setScoreboard(Scoreboard scoreboardIn)
     {
-        this.theScoreboard = scoreboardIn;
+        this.scoreboard = scoreboardIn;
 
         if (this.delayedInitNbt != null)
         {
@@ -39,7 +39,7 @@ public class ScoreboardSaveData extends WorldSavedData
      */
     public void readFromNBT(NBTTagCompound nbt)
     {
-        if (this.theScoreboard == null)
+        if (this.scoreboard == null)
         {
             this.delayedInitNbt = nbt;
         }
@@ -60,11 +60,11 @@ public class ScoreboardSaveData extends WorldSavedData
         }
     }
 
-    protected void readTeams(NBTTagList p_96498_1_)
+    protected void readTeams(NBTTagList tagList)
     {
-        for (int i = 0; i < p_96498_1_.tagCount(); ++i)
+        for (int i = 0; i < tagList.tagCount(); ++i)
         {
-            NBTTagCompound nbttagcompound = p_96498_1_.getCompoundTagAt(i);
+            NBTTagCompound nbttagcompound = tagList.getCompoundTagAt(i);
             String s = nbttagcompound.getString("Name");
 
             if (s.length() > 16)
@@ -72,7 +72,7 @@ public class ScoreboardSaveData extends WorldSavedData
                 s = s.substring(0, 16);
             }
 
-            ScorePlayerTeam scoreplayerteam = this.theScoreboard.createTeam(s);
+            ScorePlayerTeam scoreplayerteam = this.scoreboard.createTeam(s);
             String s1 = nbttagcompound.getString("DisplayName");
 
             if (s1.length() > 32)
@@ -80,15 +80,15 @@ public class ScoreboardSaveData extends WorldSavedData
                 s1 = s1.substring(0, 32);
             }
 
-            scoreplayerteam.setTeamName(s1);
+            scoreplayerteam.setDisplayName(s1);
 
             if (nbttagcompound.hasKey("TeamColor", 8))
             {
-                scoreplayerteam.setChatFormat(EnumChatFormatting.getValueByName(nbttagcompound.getString("TeamColor")));
+                scoreplayerteam.setColor(TextFormatting.getValueByName(nbttagcompound.getString("TeamColor")));
             }
 
-            scoreplayerteam.setNamePrefix(nbttagcompound.getString("Prefix"));
-            scoreplayerteam.setNameSuffix(nbttagcompound.getString("Suffix"));
+            scoreplayerteam.setPrefix(nbttagcompound.getString("Prefix"));
+            scoreplayerteam.setSuffix(nbttagcompound.getString("Suffix"));
 
             if (nbttagcompound.hasKey("AllowFriendlyFire", 99))
             {
@@ -102,7 +102,7 @@ public class ScoreboardSaveData extends WorldSavedData
 
             if (nbttagcompound.hasKey("NameTagVisibility", 8))
             {
-                Team.EnumVisible team$enumvisible = Team.EnumVisible.func_178824_a(nbttagcompound.getString("NameTagVisibility"));
+                Team.EnumVisible team$enumvisible = Team.EnumVisible.getByName(nbttagcompound.getString("NameTagVisibility"));
 
                 if (team$enumvisible != null)
                 {
@@ -112,7 +112,7 @@ public class ScoreboardSaveData extends WorldSavedData
 
             if (nbttagcompound.hasKey("DeathMessageVisibility", 8))
             {
-                Team.EnumVisible team$enumvisible1 = Team.EnumVisible.func_178824_a(nbttagcompound.getString("DeathMessageVisibility"));
+                Team.EnumVisible team$enumvisible1 = Team.EnumVisible.getByName(nbttagcompound.getString("DeathMessageVisibility"));
 
                 if (team$enumvisible1 != null)
                 {
@@ -120,27 +120,37 @@ public class ScoreboardSaveData extends WorldSavedData
                 }
             }
 
-            this.func_96502_a(scoreplayerteam, nbttagcompound.getTagList("Players", 8));
+            if (nbttagcompound.hasKey("CollisionRule", 8))
+            {
+                Team.CollisionRule team$collisionrule = Team.CollisionRule.getByName(nbttagcompound.getString("CollisionRule"));
+
+                if (team$collisionrule != null)
+                {
+                    scoreplayerteam.setCollisionRule(team$collisionrule);
+                }
+            }
+
+            this.loadTeamPlayers(scoreplayerteam, nbttagcompound.getTagList("Players", 8));
         }
     }
 
-    protected void func_96502_a(ScorePlayerTeam p_96502_1_, NBTTagList p_96502_2_)
+    protected void loadTeamPlayers(ScorePlayerTeam playerTeam, NBTTagList tagList)
     {
-        for (int i = 0; i < p_96502_2_.tagCount(); ++i)
+        for (int i = 0; i < tagList.tagCount(); ++i)
         {
-            this.theScoreboard.addPlayerToTeam(p_96502_2_.getStringTagAt(i), p_96502_1_.getRegisteredName());
+            this.scoreboard.addPlayerToTeam(tagList.getStringTagAt(i), playerTeam.getName());
         }
     }
 
-    protected void readDisplayConfig(NBTTagCompound p_96504_1_)
+    protected void readDisplayConfig(NBTTagCompound compound)
     {
         for (int i = 0; i < 19; ++i)
         {
-            if (p_96504_1_.hasKey("slot_" + i, 8))
+            if (compound.hasKey("slot_" + i, 8))
             {
-                String s = p_96504_1_.getString("slot_" + i);
-                ScoreObjective scoreobjective = this.theScoreboard.getObjective(s);
-                this.theScoreboard.setObjectiveInDisplaySlot(i, scoreobjective);
+                String s = compound.getString("slot_" + i);
+                ScoreObjective scoreobjective = this.scoreboard.getObjective(s);
+                this.scoreboard.setObjectiveInDisplaySlot(i, scoreobjective);
             }
         }
     }
@@ -150,9 +160,9 @@ public class ScoreboardSaveData extends WorldSavedData
         for (int i = 0; i < nbt.tagCount(); ++i)
         {
             NBTTagCompound nbttagcompound = nbt.getCompoundTagAt(i);
-            IScoreObjectiveCriteria iscoreobjectivecriteria = (IScoreObjectiveCriteria)IScoreObjectiveCriteria.INSTANCES.get(nbttagcompound.getString("CriteriaName"));
+            IScoreCriteria iscorecriteria = IScoreCriteria.INSTANCES.get(nbttagcompound.getString("CriteriaName"));
 
-            if (iscoreobjectivecriteria != null)
+            if (iscorecriteria != null)
             {
                 String s = nbttagcompound.getString("Name");
 
@@ -161,9 +171,9 @@ public class ScoreboardSaveData extends WorldSavedData
                     s = s.substring(0, 16);
                 }
 
-                ScoreObjective scoreobjective = this.theScoreboard.addScoreObjective(s, iscoreobjectivecriteria);
+                ScoreObjective scoreobjective = this.scoreboard.addScoreObjective(s, iscorecriteria);
                 scoreobjective.setDisplayName(nbttagcompound.getString("DisplayName"));
-                scoreobjective.setRenderType(IScoreObjectiveCriteria.EnumRenderType.func_178795_a(nbttagcompound.getString("RenderType")));
+                scoreobjective.setRenderType(IScoreCriteria.EnumRenderType.getByName(nbttagcompound.getString("RenderType")));
             }
         }
     }
@@ -173,7 +183,7 @@ public class ScoreboardSaveData extends WorldSavedData
         for (int i = 0; i < nbt.tagCount(); ++i)
         {
             NBTTagCompound nbttagcompound = nbt.getCompoundTagAt(i);
-            ScoreObjective scoreobjective = this.theScoreboard.getObjective(nbttagcompound.getString("Objective"));
+            ScoreObjective scoreobjective = this.scoreboard.getObjective(nbttagcompound.getString("Objective"));
             String s = nbttagcompound.getString("Name");
 
             if (s.length() > 40)
@@ -181,7 +191,7 @@ public class ScoreboardSaveData extends WorldSavedData
                 s = s.substring(0, 40);
             }
 
-            Score score = this.theScoreboard.getValueFromObjective(s, scoreobjective);
+            Score score = this.scoreboard.getOrCreateScore(s, scoreobjective);
             score.setScorePoints(nbttagcompound.getInteger("Score"));
 
             if (nbttagcompound.hasKey("Locked"))
@@ -191,45 +201,45 @@ public class ScoreboardSaveData extends WorldSavedData
         }
     }
 
-    /**
-     * write data to NBTTagCompound from this MapDataBase, similar to Entities and TileEntities
-     */
-    public void writeToNBT(NBTTagCompound nbt)
+    public NBTTagCompound writeToNBT(NBTTagCompound compound)
     {
-        if (this.theScoreboard == null)
+        if (this.scoreboard == null)
         {
-            logger.warn("Tried to save scoreboard without having a scoreboard...");
+            LOGGER.warn("Tried to save scoreboard without having a scoreboard...");
+            return compound;
         }
         else
         {
-            nbt.setTag("Objectives", this.objectivesToNbt());
-            nbt.setTag("PlayerScores", this.scoresToNbt());
-            nbt.setTag("Teams", this.func_96496_a());
-            this.func_96497_d(nbt);
+            compound.setTag("Objectives", this.objectivesToNbt());
+            compound.setTag("PlayerScores", this.scoresToNbt());
+            compound.setTag("Teams", this.teamsToNbt());
+            this.fillInDisplaySlots(compound);
+            return compound;
         }
     }
 
-    protected NBTTagList func_96496_a()
+    protected NBTTagList teamsToNbt()
     {
         NBTTagList nbttaglist = new NBTTagList();
 
-        for (ScorePlayerTeam scoreplayerteam : this.theScoreboard.getTeams())
+        for (ScorePlayerTeam scoreplayerteam : this.scoreboard.getTeams())
         {
             NBTTagCompound nbttagcompound = new NBTTagCompound();
-            nbttagcompound.setString("Name", scoreplayerteam.getRegisteredName());
-            nbttagcompound.setString("DisplayName", scoreplayerteam.getTeamName());
+            nbttagcompound.setString("Name", scoreplayerteam.getName());
+            nbttagcompound.setString("DisplayName", scoreplayerteam.getDisplayName());
 
-            if (scoreplayerteam.getChatFormat().getColorIndex() >= 0)
+            if (scoreplayerteam.getColor().getColorIndex() >= 0)
             {
-                nbttagcompound.setString("TeamColor", scoreplayerteam.getChatFormat().getFriendlyName());
+                nbttagcompound.setString("TeamColor", scoreplayerteam.getColor().getFriendlyName());
             }
 
-            nbttagcompound.setString("Prefix", scoreplayerteam.getColorPrefix());
-            nbttagcompound.setString("Suffix", scoreplayerteam.getColorSuffix());
+            nbttagcompound.setString("Prefix", scoreplayerteam.getPrefix());
+            nbttagcompound.setString("Suffix", scoreplayerteam.getSuffix());
             nbttagcompound.setBoolean("AllowFriendlyFire", scoreplayerteam.getAllowFriendlyFire());
             nbttagcompound.setBoolean("SeeFriendlyInvisibles", scoreplayerteam.getSeeFriendlyInvisiblesEnabled());
             nbttagcompound.setString("NameTagVisibility", scoreplayerteam.getNameTagVisibility().internalName);
             nbttagcompound.setString("DeathMessageVisibility", scoreplayerteam.getDeathMessageVisibility().internalName);
+            nbttagcompound.setString("CollisionRule", scoreplayerteam.getCollisionRule().name);
             NBTTagList nbttaglist1 = new NBTTagList();
 
             for (String s : scoreplayerteam.getMembershipCollection())
@@ -244,14 +254,14 @@ public class ScoreboardSaveData extends WorldSavedData
         return nbttaglist;
     }
 
-    protected void func_96497_d(NBTTagCompound p_96497_1_)
+    protected void fillInDisplaySlots(NBTTagCompound compound)
     {
         NBTTagCompound nbttagcompound = new NBTTagCompound();
         boolean flag = false;
 
         for (int i = 0; i < 19; ++i)
         {
-            ScoreObjective scoreobjective = this.theScoreboard.getObjectiveInDisplaySlot(i);
+            ScoreObjective scoreobjective = this.scoreboard.getObjectiveInDisplaySlot(i);
 
             if (scoreobjective != null)
             {
@@ -262,7 +272,7 @@ public class ScoreboardSaveData extends WorldSavedData
 
         if (flag)
         {
-            p_96497_1_.setTag("DisplaySlots", nbttagcompound);
+            compound.setTag("DisplaySlots", nbttagcompound);
         }
     }
 
@@ -270,7 +280,7 @@ public class ScoreboardSaveData extends WorldSavedData
     {
         NBTTagList nbttaglist = new NBTTagList();
 
-        for (ScoreObjective scoreobjective : this.theScoreboard.getScoreObjectives())
+        for (ScoreObjective scoreobjective : this.scoreboard.getScoreObjectives())
         {
             if (scoreobjective.getCriteria() != null)
             {
@@ -278,7 +288,7 @@ public class ScoreboardSaveData extends WorldSavedData
                 nbttagcompound.setString("Name", scoreobjective.getName());
                 nbttagcompound.setString("CriteriaName", scoreobjective.getCriteria().getName());
                 nbttagcompound.setString("DisplayName", scoreobjective.getDisplayName());
-                nbttagcompound.setString("RenderType", scoreobjective.getRenderType().func_178796_a());
+                nbttagcompound.setString("RenderType", scoreobjective.getRenderType().getRenderType());
                 nbttaglist.appendTag(nbttagcompound);
             }
         }
@@ -290,7 +300,7 @@ public class ScoreboardSaveData extends WorldSavedData
     {
         NBTTagList nbttaglist = new NBTTagList();
 
-        for (Score score : this.theScoreboard.getScores())
+        for (Score score : this.scoreboard.getScores())
         {
             if (score.getObjective() != null)
             {

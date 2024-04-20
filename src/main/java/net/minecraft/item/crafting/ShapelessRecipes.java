@@ -1,43 +1,67 @@
 package net.minecraft.item.crafting;
 
 import com.google.common.collect.Lists;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import java.util.List;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.JsonUtils;
+import net.minecraft.util.NonNullList;
 import net.minecraft.world.World;
 
 public class ShapelessRecipes implements IRecipe
 {
     /** Is the ItemStack that you get when craft the recipe. */
     private final ItemStack recipeOutput;
-    private final List<ItemStack> recipeItems;
+    private final NonNullList<Ingredient> recipeItems;
+    private final String group;
 
-    public ShapelessRecipes(ItemStack output, List<ItemStack> inputList)
+    public ShapelessRecipes(String group, ItemStack output, NonNullList<Ingredient> ingredients)
     {
+        this.group = group;
         this.recipeOutput = output;
-        this.recipeItems = inputList;
+        this.recipeItems = ingredients;
     }
 
+    /**
+     * Recipes with equal group are combined into one button in the recipe book
+     */
+    public String getGroup()
+    {
+        return this.group;
+    }
+
+    /**
+     * Get the result of this recipe, usually for display purposes (e.g. recipe book). If your recipe has more than one
+     * possible result (e.g. it's dynamic and depends on its inputs), then return an empty stack.
+     */
     public ItemStack getRecipeOutput()
     {
         return this.recipeOutput;
     }
 
-    public ItemStack[] getRemainingItems(InventoryCrafting inv)
+    public NonNullList<Ingredient> getIngredients()
     {
-        ItemStack[] aitemstack = new ItemStack[inv.getSizeInventory()];
+        return this.recipeItems;
+    }
 
-        for (int i = 0; i < aitemstack.length; ++i)
+    public NonNullList<ItemStack> getRemainingItems(InventoryCrafting inv)
+    {
+        NonNullList<ItemStack> nonnulllist = NonNullList.<ItemStack>withSize(inv.getSizeInventory(), ItemStack.EMPTY);
+
+        for (int i = 0; i < nonnulllist.size(); ++i)
         {
             ItemStack itemstack = inv.getStackInSlot(i);
 
-            if (itemstack != null && itemstack.getItem().hasContainerItem())
+            if (itemstack.getItem().hasContainerItem())
             {
-                aitemstack[i] = new ItemStack(itemstack.getItem().getContainerItem());
+                nonnulllist.set(i, new ItemStack(itemstack.getItem().getContainerItem()));
             }
         }
 
-        return aitemstack;
+        return nonnulllist;
     }
 
     /**
@@ -45,7 +69,7 @@ public class ShapelessRecipes implements IRecipe
      */
     public boolean matches(InventoryCrafting inv, World worldIn)
     {
-        List<ItemStack> list = Lists.newArrayList(this.recipeItems);
+        List<Ingredient> list = Lists.newArrayList(this.recipeItems);
 
         for (int i = 0; i < inv.getHeight(); ++i)
         {
@@ -53,16 +77,16 @@ public class ShapelessRecipes implements IRecipe
             {
                 ItemStack itemstack = inv.getStackInRowAndColumn(j, i);
 
-                if (itemstack != null)
+                if (!itemstack.isEmpty())
                 {
                     boolean flag = false;
 
-                    for (ItemStack itemstack1 : list)
+                    for (Ingredient ingredient : list)
                     {
-                        if (itemstack.getItem() == itemstack1.getItem() && (itemstack1.getMetadata() == 32767 || itemstack.getMetadata() == itemstack1.getMetadata()))
+                        if (ingredient.apply(itemstack))
                         {
                             flag = true;
-                            list.remove(itemstack1);
+                            list.remove(ingredient);
                             break;
                         }
                     }
@@ -86,11 +110,48 @@ public class ShapelessRecipes implements IRecipe
         return this.recipeOutput.copy();
     }
 
-    /**
-     * Returns the size of the recipe area
-     */
-    public int getRecipeSize()
+    public static ShapelessRecipes deserialize(JsonObject json)
     {
-        return this.recipeItems.size();
+        String s = JsonUtils.getString(json, "group", "");
+        NonNullList<Ingredient> nonnulllist = deserializeIngredients(JsonUtils.getJsonArray(json, "ingredients"));
+
+        if (nonnulllist.isEmpty())
+        {
+            throw new JsonParseException("No ingredients for shapeless recipe");
+        }
+        else if (nonnulllist.size() > 9)
+        {
+            throw new JsonParseException("Too many ingredients for shapeless recipe");
+        }
+        else
+        {
+            ItemStack itemstack = ShapedRecipes.deserializeItem(JsonUtils.getJsonObject(json, "result"), true);
+            return new ShapelessRecipes(s, itemstack, nonnulllist);
+        }
+    }
+
+    private static NonNullList<Ingredient> deserializeIngredients(JsonArray array)
+    {
+        NonNullList<Ingredient> nonnulllist = NonNullList.<Ingredient>create();
+
+        for (int i = 0; i < array.size(); ++i)
+        {
+            Ingredient ingredient = ShapedRecipes.deserializeIngredient(array.get(i));
+
+            if (ingredient != Ingredient.EMPTY)
+            {
+                nonnulllist.add(ingredient);
+            }
+        }
+
+        return nonnulllist;
+    }
+
+    /**
+     * Used to determine if this recipe can fit in a grid of the given width/height
+     */
+    public boolean canFit(int width, int height)
+    {
+        return width * height >= this.recipeItems.size();
     }
 }

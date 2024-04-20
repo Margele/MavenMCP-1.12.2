@@ -6,15 +6,15 @@ import net.minecraft.world.World;
 
 public class EntityAIOcelotAttack extends EntityAIBase
 {
-    World theWorld;
-    EntityLiving theEntity;
-    EntityLivingBase theVictim;
+    World world;
+    EntityLiving entity;
+    EntityLivingBase target;
     int attackCountdown;
 
     public EntityAIOcelotAttack(EntityLiving theEntityIn)
     {
-        this.theEntity = theEntityIn;
-        this.theWorld = theEntityIn.worldObj;
+        this.entity = theEntityIn;
+        this.world = theEntityIn.world;
         this.setMutexBits(3);
     }
 
@@ -23,7 +23,7 @@ public class EntityAIOcelotAttack extends EntityAIBase
      */
     public boolean shouldExecute()
     {
-        EntityLivingBase entitylivingbase = this.theEntity.getAttackTarget();
+        EntityLivingBase entitylivingbase = this.entity.getAttackTarget();
 
         if (entitylivingbase == null)
         {
@@ -31,7 +31,7 @@ public class EntityAIOcelotAttack extends EntityAIBase
         }
         else
         {
-            this.theVictim = entitylivingbase;
+            this.target = entitylivingbase;
             return true;
         }
     }
@@ -39,28 +39,39 @@ public class EntityAIOcelotAttack extends EntityAIBase
     /**
      * Returns whether an in-progress EntityAIBase should continue executing
      */
-    public boolean continueExecuting()
+    public boolean shouldContinueExecuting()
     {
-        return !this.theVictim.isEntityAlive() ? false : (this.theEntity.getDistanceSqToEntity(this.theVictim) > 225.0D ? false : !this.theEntity.getNavigator().noPath() || this.shouldExecute());
+        if (!this.target.isEntityAlive())
+        {
+            return false;
+        }
+        else if (this.entity.getDistanceSq(this.target) > 225.0D)
+        {
+            return false;
+        }
+        else
+        {
+            return !this.entity.getNavigator().noPath() || this.shouldExecute();
+        }
     }
 
     /**
-     * Resets the task
+     * Reset the task's internal state. Called when this task is interrupted by another one
      */
     public void resetTask()
     {
-        this.theVictim = null;
-        this.theEntity.getNavigator().clearPathEntity();
+        this.target = null;
+        this.entity.getNavigator().clearPath();
     }
 
     /**
-     * Updates the task
+     * Keep ticking a continuous task that has already been started
      */
     public void updateTask()
     {
-        this.theEntity.getLookHelper().setLookPositionWithEntity(this.theVictim, 30.0F, 30.0F);
-        double d0 = (double)(this.theEntity.width * 2.0F * this.theEntity.width * 2.0F);
-        double d1 = this.theEntity.getDistanceSq(this.theVictim.posX, this.theVictim.getEntityBoundingBox().minY, this.theVictim.posZ);
+        this.entity.getLookHelper().setLookPositionWithEntity(this.target, 30.0F, 30.0F);
+        double d0 = (double)(this.entity.width * 2.0F * this.entity.width * 2.0F);
+        double d1 = this.entity.getDistanceSq(this.target.posX, this.target.getEntityBoundingBox().minY, this.target.posZ);
         double d2 = 0.8D;
 
         if (d1 > d0 && d1 < 16.0D)
@@ -72,7 +83,7 @@ public class EntityAIOcelotAttack extends EntityAIBase
             d2 = 0.6D;
         }
 
-        this.theEntity.getNavigator().tryMoveToEntityLiving(this.theVictim, d2);
+        this.entity.getNavigator().tryMoveToEntityLiving(this.target, d2);
         this.attackCountdown = Math.max(this.attackCountdown - 1, 0);
 
         if (d1 <= d0)
@@ -80,7 +91,7 @@ public class EntityAIOcelotAttack extends EntityAIBase
             if (this.attackCountdown <= 0)
             {
                 this.attackCountdown = 20;
-                this.theEntity.attackEntityAsMob(this.theVictim);
+                this.entity.attackEntityAsMob(this.target);
             }
         }
     }

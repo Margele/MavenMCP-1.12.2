@@ -23,28 +23,32 @@ public class ContainerHopper extends Container
         {
             for (int k = 0; k < 9; ++k)
             {
-                this.addSlotToContainer(new Slot(playerInventory, k + l * 9 + 9, 8 + k * 18, l * 18 + i));
+                this.addSlotToContainer(new Slot(playerInventory, k + l * 9 + 9, 8 + k * 18, l * 18 + 51));
             }
         }
 
         for (int i1 = 0; i1 < 9; ++i1)
         {
-            this.addSlotToContainer(new Slot(playerInventory, i1, 8 + i1 * 18, 58 + i));
+            this.addSlotToContainer(new Slot(playerInventory, i1, 8 + i1 * 18, 109));
         }
     }
 
+    /**
+     * Determines whether supplied player can use this container
+     */
     public boolean canInteractWith(EntityPlayer playerIn)
     {
-        return this.hopperInventory.isUseableByPlayer(playerIn);
+        return this.hopperInventory.isUsableByPlayer(playerIn);
     }
 
     /**
-     * Take a stack from the specified inventory slot.
+     * Handle when the stack in slot {@code index} is shift-clicked. Normally this moves the stack between the player
+     * inventory and the other inventory(s).
      */
     public ItemStack transferStackInSlot(EntityPlayer playerIn, int index)
     {
-        ItemStack itemstack = null;
-        Slot slot = (Slot)this.inventorySlots.get(index);
+        ItemStack itemstack = ItemStack.EMPTY;
+        Slot slot = this.inventorySlots.get(index);
 
         if (slot != null && slot.getHasStack())
         {
@@ -55,17 +59,17 @@ public class ContainerHopper extends Container
             {
                 if (!this.mergeItemStack(itemstack1, this.hopperInventory.getSizeInventory(), this.inventorySlots.size(), true))
                 {
-                    return null;
+                    return ItemStack.EMPTY;
                 }
             }
             else if (!this.mergeItemStack(itemstack1, 0, this.hopperInventory.getSizeInventory(), false))
             {
-                return null;
+                return ItemStack.EMPTY;
             }
 
-            if (itemstack1.stackSize == 0)
+            if (itemstack1.isEmpty())
             {
-                slot.putStack((ItemStack)null);
+                slot.putStack(ItemStack.EMPTY);
             }
             else
             {

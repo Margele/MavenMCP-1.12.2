@@ -3,6 +3,9 @@ package net.minecraft.client.main;
 import com.mojang.authlib.properties.PropertyMap;
 import java.io.File;
 import java.net.Proxy;
+import javax.annotation.Nullable;
+import net.minecraft.client.resources.ResourceIndex;
+import net.minecraft.client.resources.ResourceIndexFolder;
 import net.minecraft.util.Session;
 
 public class GameConfiguration
@@ -40,17 +43,22 @@ public class GameConfiguration
 
     public static class FolderInformation
     {
-        public final File mcDataDir;
+        public final File gameDir;
         public final File resourcePacksDir;
         public final File assetsDir;
         public final String assetIndex;
 
-        public FolderInformation(File mcDataDirIn, File resourcePacksDirIn, File assetsDirIn, String assetIndexIn)
+        public FolderInformation(File mcDataDirIn, File resourcePacksDirIn, File assetsDirIn, @Nullable String assetIndexIn)
         {
-            this.mcDataDir = mcDataDirIn;
+            this.gameDir = mcDataDirIn;
             this.resourcePacksDir = resourcePacksDirIn;
             this.assetsDir = assetsDirIn;
             this.assetIndex = assetIndexIn;
+        }
+
+        public ResourceIndex getAssetsIndex()
+        {
+            return (ResourceIndex)(this.assetIndex == null ? new ResourceIndexFolder(this.assetsDir) : new ResourceIndex(this.assetsDir, this.assetIndex));
         }
     }
 
@@ -58,11 +66,13 @@ public class GameConfiguration
     {
         public final boolean isDemo;
         public final String version;
+        public final String versionType;
 
-        public GameInformation(boolean isDemoIn, String versionIn)
+        public GameInformation(boolean demo, String versionIn, String versionTypeIn)
         {
-            this.isDemo = isDemoIn;
+            this.isDemo = demo;
             this.version = versionIn;
+            this.versionType = versionTypeIn;
         }
     }
 

@@ -1,10 +1,12 @@
 package net.minecraft.tileentity;
 
+import javax.annotation.Nullable;
 import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.network.Packet;
-import net.minecraft.network.play.server.S35PacketUpdateTileEntity;
+import net.minecraft.network.play.server.SPacketUpdateTileEntity;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.datafix.DataFixer;
 
 public class TileEntityFlowerPot extends TileEntity
 {
@@ -21,12 +23,17 @@ public class TileEntityFlowerPot extends TileEntity
         this.flowerPotData = potData;
     }
 
-    public void writeToNBT(NBTTagCompound compound)
+    public static void registerFixesFlowerPot(DataFixer fixer)
+    {
+    }
+
+    public NBTTagCompound writeToNBT(NBTTagCompound compound)
     {
         super.writeToNBT(compound);
-        ResourceLocation resourcelocation = (ResourceLocation)Item.itemRegistry.getNameForObject(this.flowerPotItem);
+        ResourceLocation resourcelocation = Item.REGISTRY.getNameForObject(this.flowerPotItem);
         compound.setString("Item", resourcelocation == null ? "" : resourcelocation.toString());
         compound.setInteger("Data", this.flowerPotData);
+        return compound;
     }
 
     public void readFromNBT(NBTTagCompound compound)
@@ -45,25 +52,38 @@ public class TileEntityFlowerPot extends TileEntity
         this.flowerPotData = compound.getInteger("Data");
     }
 
+    @Nullable
+
     /**
-     * Allows for a specialized description packet to be created. This is often used to sync tile entity data from the
-     * server to the client easily. For example this is used by signs to synchronise the text to be displayed.
+     * Retrieves packet to send to the client whenever this Tile Entity is resynced via World.notifyBlockUpdate. For
+     * modded TE's, this packet comes back to you clientside in {@link #onDataPacket}
      */
-    public Packet getDescriptionPacket()
+    public SPacketUpdateTileEntity getUpdatePacket()
     {
-        NBTTagCompound nbttagcompound = new NBTTagCompound();
-        this.writeToNBT(nbttagcompound);
-        nbttagcompound.removeTag("Item");
-        nbttagcompound.setInteger("Item", Item.getIdFromItem(this.flowerPotItem));
-        return new S35PacketUpdateTileEntity(this.pos, 5, nbttagcompound);
+        return new SPacketUpdateTileEntity(this.pos, 5, this.getUpdateTag());
     }
 
-    public void setFlowerPotData(Item potItem, int potData)
+    /**
+     * Get an NBT compound to sync to the client with SPacketChunkData, used for initial loading of the chunk or when
+     * many blocks change at once. This compound comes back to you clientside in {@link handleUpdateTag}
+     */
+    public NBTTagCompound getUpdateTag()
     {
-        this.flowerPotItem = potItem;
-        this.flowerPotData = potData;
+        return this.writeToNBT(new NBTTagCompound());
     }
 
+    public void setItemStack(ItemStack stack)
+    {
+        this.flowerPotItem = stack.getItem();
+        this.flowerPotData = stack.getMetadata();
+    }
+
+    public ItemStack getFlowerItemStack()
+    {
+        return this.flowerPotItem == null ? ItemStack.EMPTY : new ItemStack(this.flowerPotItem, 1, this.flowerPotData);
+    }
+
+    @Nullable
     public Item getFlowerPotItem()
     {
         return this.flowerPotItem;

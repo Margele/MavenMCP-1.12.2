@@ -2,7 +2,6 @@ package net.minecraft.client.gui;
 
 import io.netty.buffer.Unpooled;
 import java.io.IOException;
-import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
@@ -10,26 +9,31 @@ import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Container;
 import net.minecraft.inventory.ContainerRepair;
-import net.minecraft.inventory.ICrafting;
+import net.minecraft.inventory.IContainerListener;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.PacketBuffer;
-import net.minecraft.network.play.client.C17PacketCustomPayload;
+import net.minecraft.network.play.client.CPacketCustomPayload;
+import net.minecraft.util.NonNullList;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.World;
 import org.lwjgl.input.Keyboard;
 
-public class GuiRepair extends GuiContainer implements ICrafting
+public class GuiRepair extends GuiContainer implements IContainerListener
 {
-    private static final ResourceLocation anvilResource = new ResourceLocation("textures/gui/container/anvil.png");
-    private ContainerRepair anvil;
+    private static final ResourceLocation ANVIL_RESOURCE = new ResourceLocation("textures/gui/container/anvil.png");
+
+    /**
+     * The same reference as {@link GuiContainer#inventorySlots}, downcasted to {@link ContainerRepair}.
+     */
+    private final ContainerRepair anvil;
     private GuiTextField nameField;
-    private InventoryPlayer playerInventory;
+    private final InventoryPlayer playerInventory;
 
     public GuiRepair(InventoryPlayer inventoryIn, World worldIn)
     {
-        super(new ContainerRepair(inventoryIn, worldIn, Minecraft.getMinecraft().thePlayer));
+        super(new ContainerRepair(inventoryIn, worldIn, Minecraft.getMinecraft().player));
         this.playerInventory = inventoryIn;
         this.anvil = (ContainerRepair)this.inventorySlots;
     }
@@ -44,13 +48,13 @@ public class GuiRepair extends GuiContainer implements ICrafting
         Keyboard.enableRepeatEvents(true);
         int i = (this.width - this.xSize) / 2;
         int j = (this.height - this.ySize) / 2;
-        this.nameField = new GuiTextField(0, this.fontRendererObj, i + 62, j + 24, 103, 12);
+        this.nameField = new GuiTextField(0, this.fontRenderer, i + 62, j + 24, 103, 12);
         this.nameField.setTextColor(-1);
         this.nameField.setDisabledTextColour(-1);
         this.nameField.setEnableBackgroundDrawing(false);
-        this.nameField.setMaxStringLength(30);
-        this.inventorySlots.removeCraftingFromCrafters(this);
-        this.inventorySlots.onCraftGuiOpened(this);
+        this.nameField.setMaxStringLength(35);
+        this.inventorySlots.removeListener(this);
+        this.inventorySlots.addListener(this);
     }
 
     /**
@@ -60,27 +64,27 @@ public class GuiRepair extends GuiContainer implements ICrafting
     {
         super.onGuiClosed();
         Keyboard.enableRepeatEvents(false);
-        this.inventorySlots.removeCraftingFromCrafters(this);
+        this.inventorySlots.removeListener(this);
     }
 
     /**
-     * Draw the foreground layer for the GuiContainer (everything in front of the items). Args : mouseX, mouseY
+     * Draw the foreground layer for the GuiContainer (everything in front of the items)
      */
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY)
     {
         GlStateManager.disableLighting();
         GlStateManager.disableBlend();
-        this.fontRendererObj.drawString(I18n.format("container.repair", new Object[0]), 60, 6, 4210752);
+        this.fontRenderer.drawString(I18n.format("container.repair"), 60, 6, 4210752);
 
         if (this.anvil.maximumCost > 0)
         {
             int i = 8453920;
             boolean flag = true;
-            String s = I18n.format("container.repair.cost", new Object[] {Integer.valueOf(this.anvil.maximumCost)});
+            String s = I18n.format("container.repair.cost", this.anvil.maximumCost);
 
-            if (this.anvil.maximumCost >= 40 && !this.mc.thePlayer.capabilities.isCreativeMode)
+            if (this.anvil.maximumCost >= 40 && !this.mc.player.capabilities.isCreativeMode)
             {
-                s = I18n.format("container.repair.expensive", new Object[0]);
+                s = I18n.format("container.repair.expensive");
                 i = 16736352;
             }
             else if (!this.anvil.getSlot(2).getHasStack())
@@ -95,22 +99,22 @@ public class GuiRepair extends GuiContainer implements ICrafting
             if (flag)
             {
                 int j = -16777216 | (i & 16579836) >> 2 | i & -16777216;
-                int k = this.xSize - 8 - this.fontRendererObj.getStringWidth(s);
+                int k = this.xSize - 8 - this.fontRenderer.getStringWidth(s);
                 int l = 67;
 
-                if (this.fontRendererObj.getUnicodeFlag())
+                if (this.fontRenderer.getUnicodeFlag())
                 {
-                    drawRect(k - 3, l - 2, this.xSize - 7, l + 10, -16777216);
-                    drawRect(k - 2, l - 1, this.xSize - 8, l + 9, -12895429);
+                    drawRect(k - 3, 65, this.xSize - 7, 77, -16777216);
+                    drawRect(k - 2, 66, this.xSize - 8, 76, -12895429);
                 }
                 else
                 {
-                    this.fontRendererObj.drawString(s, k, l + 1, j);
-                    this.fontRendererObj.drawString(s, k + 1, l, j);
-                    this.fontRendererObj.drawString(s, k + 1, l + 1, j);
+                    this.fontRenderer.drawString(s, k, 68, j);
+                    this.fontRenderer.drawString(s, k + 1, 67, j);
+                    this.fontRenderer.drawString(s, k + 1, 68, j);
                 }
 
-                this.fontRendererObj.drawString(s, k, l, i);
+                this.fontRenderer.drawString(s, k, 67, i);
             }
         }
 
@@ -144,7 +148,7 @@ public class GuiRepair extends GuiContainer implements ICrafting
         }
 
         this.anvil.updateItemName(s);
-        this.mc.thePlayer.sendQueue.addToSendQueue(new C17PacketCustomPayload("MC|ItemName", (new PacketBuffer(Unpooled.buffer())).writeString(s)));
+        this.mc.player.connection.sendPacket(new CPacketCustomPayload("MC|ItemName", (new PacketBuffer(Unpooled.buffer())).writeString(s)));
     }
 
     /**
@@ -157,23 +161,25 @@ public class GuiRepair extends GuiContainer implements ICrafting
     }
 
     /**
-     * Draws the screen and all the components in it. Args : mouseX, mouseY, renderPartialTicks
+     * Draws the screen and all the components in it.
      */
     public void drawScreen(int mouseX, int mouseY, float partialTicks)
     {
+        this.drawDefaultBackground();
         super.drawScreen(mouseX, mouseY, partialTicks);
+        this.renderHoveredToolTip(mouseX, mouseY);
         GlStateManager.disableLighting();
         GlStateManager.disableBlend();
         this.nameField.drawTextBox();
     }
 
     /**
-     * Args : renderPartialTicks, mouseX, mouseY
+     * Draws the background layer of this container (behind the items).
      */
     protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY)
     {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        this.mc.getTextureManager().bindTexture(anvilResource);
+        this.mc.getTextureManager().bindTexture(ANVIL_RESOURCE);
         int i = (this.width - this.xSize) / 2;
         int j = (this.height - this.ySize) / 2;
         this.drawTexturedModalRect(i, j, 0, 0, this.xSize, this.ySize);
@@ -188,23 +194,23 @@ public class GuiRepair extends GuiContainer implements ICrafting
     /**
      * update the crafting window inventory with the items in the list
      */
-    public void updateCraftingInventory(Container containerToSend, List<ItemStack> itemsList)
+    public void sendAllContents(Container containerToSend, NonNullList<ItemStack> itemsList)
     {
         this.sendSlotContents(containerToSend, 0, containerToSend.getSlot(0).getStack());
     }
 
     /**
      * Sends the contents of an inventory slot to the client-side Container. This doesn't have to match the actual
-     * contents of that slot. Args: Container, slot number, slot contents
+     * contents of that slot.
      */
     public void sendSlotContents(Container containerToSend, int slotInd, ItemStack stack)
     {
         if (slotInd == 0)
         {
-            this.nameField.setText(stack == null ? "" : stack.getDisplayName());
-            this.nameField.setEnabled(stack != null);
+            this.nameField.setText(stack.isEmpty() ? "" : stack.getDisplayName());
+            this.nameField.setEnabled(!stack.isEmpty());
 
-            if (stack != null)
+            if (!stack.isEmpty())
             {
                 this.renameItem();
             }
@@ -216,11 +222,11 @@ public class GuiRepair extends GuiContainer implements ICrafting
      * and enchanting level. Normally the first int identifies which variable to update, and the second contains the new
      * value. Both are truncated to shorts in non-local SMP.
      */
-    public void sendProgressBarUpdate(Container containerIn, int varToUpdate, int newValue)
+    public void sendWindowProperty(Container containerIn, int varToUpdate, int newValue)
     {
     }
 
-    public void sendAllWindowProperties(Container p_175173_1_, IInventory p_175173_2_)
+    public void sendAllWindowProperties(Container containerIn, IInventory inventory)
     {
     }
 }

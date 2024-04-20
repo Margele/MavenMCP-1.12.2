@@ -1,15 +1,16 @@
 package net.minecraft.block;
 
-import java.util.List;
 import net.minecraft.block.material.MapColor;
 import net.minecraft.block.properties.IProperty;
 import net.minecraft.block.properties.PropertyEnum;
-import net.minecraft.block.state.BlockState;
+import net.minecraft.block.state.BlockStateContainer;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.creativetab.CreativeTabs;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.IStringSerializable;
+import net.minecraft.util.NonNullList;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.IBlockAccess;
 
 public class BlockSand extends BlockFalling
 {
@@ -32,18 +33,20 @@ public class BlockSand extends BlockFalling
     /**
      * returns a list of blocks with the same ID, but different meta (eg: wood returns 4 blocks)
      */
-    public void getSubBlocks(Item itemIn, CreativeTabs tab, List<ItemStack> list)
+    public void getSubBlocks(CreativeTabs itemIn, NonNullList<ItemStack> items)
     {
         for (BlockSand.EnumType blocksand$enumtype : BlockSand.EnumType.values())
         {
-            list.add(new ItemStack(itemIn, 1, blocksand$enumtype.getMetadata()));
+            items.add(new ItemStack(this, 1, blocksand$enumtype.getMetadata()));
         }
     }
 
     /**
      * Get the MapColor for this Block and the given BlockState
+     * @deprecated call via {@link IBlockState#getMapColor(IBlockAccess,BlockPos)} whenever possible.
+     * Implementing/overriding is fine.
      */
-    public MapColor getMapColor(IBlockState state)
+    public MapColor getMapColor(IBlockState state, IBlockAccess worldIn, BlockPos pos)
     {
         return ((BlockSand.EnumType)state.getValue(VARIANT)).getMapColor();
     }
@@ -64,28 +67,41 @@ public class BlockSand extends BlockFalling
         return ((BlockSand.EnumType)state.getValue(VARIANT)).getMetadata();
     }
 
-    protected BlockState createBlockState()
+    protected BlockStateContainer createBlockState()
     {
-        return new BlockState(this, new IProperty[] {VARIANT});
+        return new BlockStateContainer(this, new IProperty[] {VARIANT});
+    }
+
+    public int getDustColor(IBlockState state)
+    {
+        BlockSand.EnumType blocksand$enumtype = (BlockSand.EnumType)state.getValue(VARIANT);
+        return blocksand$enumtype.getDustColor();
     }
 
     public static enum EnumType implements IStringSerializable
     {
-        SAND(0, "sand", "default", MapColor.sandColor),
-        RED_SAND(1, "red_sand", "red", MapColor.adobeColor);
+        SAND(0, "sand", "default", MapColor.SAND, -2370656),
+        RED_SAND(1, "red_sand", "red", MapColor.ADOBE, -5679071);
 
         private static final BlockSand.EnumType[] META_LOOKUP = new BlockSand.EnumType[values().length];
         private final int meta;
         private final String name;
         private final MapColor mapColor;
-        private final String unlocalizedName;
+        private final String translationKey;
+        private final int dustColor;
 
-        private EnumType(int meta, String name, String unlocalizedName, MapColor mapColor)
+        private EnumType(int p_i47157_3_, String p_i47157_4_, String p_i47157_5_, MapColor p_i47157_6_, int p_i47157_7_)
         {
-            this.meta = meta;
-            this.name = name;
-            this.mapColor = mapColor;
-            this.unlocalizedName = unlocalizedName;
+            this.meta = p_i47157_3_;
+            this.name = p_i47157_4_;
+            this.mapColor = p_i47157_6_;
+            this.translationKey = p_i47157_5_;
+            this.dustColor = p_i47157_7_;
+        }
+
+        public int getDustColor()
+        {
+            return this.dustColor;
         }
 
         public int getMetadata()
@@ -118,9 +134,9 @@ public class BlockSand extends BlockFalling
             return this.name;
         }
 
-        public String getUnlocalizedName()
+        public String getTranslationKey()
         {
-            return this.unlocalizedName;
+            return this.translationKey;
         }
 
         static {

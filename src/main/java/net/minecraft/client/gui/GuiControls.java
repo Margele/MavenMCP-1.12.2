@@ -8,19 +8,19 @@ import net.minecraft.client.settings.KeyBinding;
 
 public class GuiControls extends GuiScreen
 {
-    private static final GameSettings.Options[] optionsArr = new GameSettings.Options[] {GameSettings.Options.INVERT_MOUSE, GameSettings.Options.SENSITIVITY, GameSettings.Options.TOUCHSCREEN};
+    private static final GameSettings.Options[] OPTIONS_ARR = new GameSettings.Options[] {GameSettings.Options.INVERT_MOUSE, GameSettings.Options.SENSITIVITY, GameSettings.Options.TOUCHSCREEN, GameSettings.Options.AUTO_JUMP};
 
     /**
      * A reference to the screen object that created this. Used for navigating between screens.
      */
-    private GuiScreen parentScreen;
+    private final GuiScreen parentScreen;
     protected String screenTitle = "Controls";
 
     /** Reference to the GameSettings object. */
-    private GameSettings options;
+    private final GameSettings options;
 
     /** The ID of the button that has been pressed. */
-    public KeyBinding buttonId = null;
+    public KeyBinding buttonId;
     public long time;
     private GuiKeyBindingList keyBindingList;
     private GuiButton buttonReset;
@@ -38,20 +38,20 @@ public class GuiControls extends GuiScreen
     public void initGui()
     {
         this.keyBindingList = new GuiKeyBindingList(this, this.mc);
-        this.buttonList.add(new GuiButton(200, this.width / 2 - 155, this.height - 29, 150, 20, I18n.format("gui.done", new Object[0])));
-        this.buttonList.add(this.buttonReset = new GuiButton(201, this.width / 2 - 155 + 160, this.height - 29, 150, 20, I18n.format("controls.resetAll", new Object[0])));
-        this.screenTitle = I18n.format("controls.title", new Object[0]);
+        this.buttonList.add(new GuiButton(200, this.width / 2 - 155 + 160, this.height - 29, 150, 20, I18n.format("gui.done")));
+        this.buttonReset = this.addButton(new GuiButton(201, this.width / 2 - 155, this.height - 29, 150, 20, I18n.format("controls.resetAll")));
+        this.screenTitle = I18n.format("controls.title");
         int i = 0;
 
-        for (GameSettings.Options gamesettings$options : optionsArr)
+        for (GameSettings.Options gamesettings$options : OPTIONS_ARR)
         {
-            if (gamesettings$options.getEnumFloat())
+            if (gamesettings$options.isFloat())
             {
-                this.buttonList.add(new GuiOptionSlider(gamesettings$options.returnEnumOrdinal(), this.width / 2 - 155 + i % 2 * 160, 18 + 24 * (i >> 1), gamesettings$options));
+                this.buttonList.add(new GuiOptionSlider(gamesettings$options.getOrdinal(), this.width / 2 - 155 + i % 2 * 160, 18 + 24 * (i >> 1), gamesettings$options));
             }
             else
             {
-                this.buttonList.add(new GuiOptionButton(gamesettings$options.returnEnumOrdinal(), this.width / 2 - 155 + i % 2 * 160, 18 + 24 * (i >> 1), gamesettings$options, this.options.getKeyBinding(gamesettings$options)));
+                this.buttonList.add(new GuiOptionButton(gamesettings$options.getOrdinal(), this.width / 2 - 155 + i % 2 * 160, 18 + 24 * (i >> 1), gamesettings$options, this.options.getKeyBinding(gamesettings$options)));
             }
 
             ++i;
@@ -87,8 +87,8 @@ public class GuiControls extends GuiScreen
         }
         else if (button.id < 100 && button instanceof GuiOptionButton)
         {
-            this.options.setOptionValue(((GuiOptionButton)button).returnEnumOptions(), 1);
-            button.displayString = this.options.getKeyBinding(GameSettings.Options.getEnumOptions(button.id));
+            this.options.setOptionValue(((GuiOptionButton)button).getOption(), 1);
+            button.displayString = this.options.getKeyBinding(GameSettings.Options.byOrdinal(button.id));
         }
     }
 
@@ -110,7 +110,7 @@ public class GuiControls extends GuiScreen
     }
 
     /**
-     * Called when a mouse button is released.  Args : mouseX, mouseY, releaseButton
+     * Called when a mouse button is released.
      */
     protected void mouseReleased(int mouseX, int mouseY, int state)
     {
@@ -152,25 +152,25 @@ public class GuiControls extends GuiScreen
     }
 
     /**
-     * Draws the screen and all the components in it. Args : mouseX, mouseY, renderPartialTicks
+     * Draws the screen and all the components in it.
      */
     public void drawScreen(int mouseX, int mouseY, float partialTicks)
     {
         this.drawDefaultBackground();
         this.keyBindingList.drawScreen(mouseX, mouseY, partialTicks);
-        this.drawCenteredString(this.fontRendererObj, this.screenTitle, this.width / 2, 8, 16777215);
-        boolean flag = true;
+        this.drawCenteredString(this.fontRenderer, this.screenTitle, this.width / 2, 8, 16777215);
+        boolean flag = false;
 
         for (KeyBinding keybinding : this.options.keyBindings)
         {
             if (keybinding.getKeyCode() != keybinding.getKeyCodeDefault())
             {
-                flag = false;
+                flag = true;
                 break;
             }
         }
 
-        this.buttonReset.enabled = !flag;
+        this.buttonReset.enabled = flag;
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 }

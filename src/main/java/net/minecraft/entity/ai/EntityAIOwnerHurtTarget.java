@@ -5,14 +5,14 @@ import net.minecraft.entity.passive.EntityTameable;
 
 public class EntityAIOwnerHurtTarget extends EntityAITarget
 {
-    EntityTameable theEntityTameable;
-    EntityLivingBase theTarget;
-    private int field_142050_e;
+    EntityTameable tameable;
+    EntityLivingBase attacker;
+    private int timestamp;
 
     public EntityAIOwnerHurtTarget(EntityTameable theEntityTameableIn)
     {
         super(theEntityTameableIn, false);
-        this.theEntityTameable = theEntityTameableIn;
+        this.tameable = theEntityTameableIn;
         this.setMutexBits(1);
     }
 
@@ -21,13 +21,13 @@ public class EntityAIOwnerHurtTarget extends EntityAITarget
      */
     public boolean shouldExecute()
     {
-        if (!this.theEntityTameable.isTamed())
+        if (!this.tameable.isTamed())
         {
             return false;
         }
         else
         {
-            EntityLivingBase entitylivingbase = this.theEntityTameable.getOwner();
+            EntityLivingBase entitylivingbase = this.tameable.getOwner();
 
             if (entitylivingbase == null)
             {
@@ -35,9 +35,9 @@ public class EntityAIOwnerHurtTarget extends EntityAITarget
             }
             else
             {
-                this.theTarget = entitylivingbase.getLastAttacker();
-                int i = entitylivingbase.getLastAttackerTime();
-                return i != this.field_142050_e && this.isSuitableTarget(this.theTarget, false) && this.theEntityTameable.shouldAttackEntity(this.theTarget, entitylivingbase);
+                this.attacker = entitylivingbase.getLastAttackedEntity();
+                int i = entitylivingbase.getLastAttackedEntityTime();
+                return i != this.timestamp && this.isSuitableTarget(this.attacker, false) && this.tameable.shouldAttackEntity(this.attacker, entitylivingbase);
             }
         }
     }
@@ -47,12 +47,12 @@ public class EntityAIOwnerHurtTarget extends EntityAITarget
      */
     public void startExecuting()
     {
-        this.taskOwner.setAttackTarget(this.theTarget);
-        EntityLivingBase entitylivingbase = this.theEntityTameable.getOwner();
+        this.taskOwner.setAttackTarget(this.attacker);
+        EntityLivingBase entitylivingbase = this.tameable.getOwner();
 
         if (entitylivingbase != null)
         {
-            this.field_142050_e = entitylivingbase.getLastAttackerTime();
+            this.timestamp = entitylivingbase.getLastAttackedEntityTime();
         }
 
         super.startExecuting();

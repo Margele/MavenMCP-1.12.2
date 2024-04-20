@@ -1,33 +1,35 @@
 package net.minecraft.command;
 
 import java.util.List;
-import net.minecraft.util.BlockPos;
+import javax.annotation.Nullable;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.math.BlockPos;
 
 public interface ICommand extends Comparable<ICommand>
 {
     /**
      * Gets the name of the command
      */
-    String getCommandName();
+    String getName();
 
     /**
      * Gets the usage string for the command.
      */
-    String getCommandUsage(ICommandSender sender);
+    String getUsage(ICommandSender sender);
 
-    List<String> getCommandAliases();
-
-    /**
-     * Callback when the command is invoked
-     */
-    void processCommand(ICommandSender sender, String[] args) throws CommandException;
+    List<String> getAliases();
 
     /**
-     * Returns true if the given command sender is allowed to use this command.
+     * Callback for when the command is executed
      */
-    boolean canCommandSenderUseCommand(ICommandSender sender);
+    void execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException;
 
-    List<String> addTabCompletionOptions(ICommandSender sender, String[] args, BlockPos pos);
+    /**
+     * Check if the given ICommandSender has permission to execute this command
+     */
+    boolean checkPermission(MinecraftServer server, ICommandSender sender);
+
+    List<String> getTabCompletions(MinecraftServer server, ICommandSender sender, String[] args, BlockPos targetPos);
 
     /**
      * Return whether the specified command parameter index is a username parameter.

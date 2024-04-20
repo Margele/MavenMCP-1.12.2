@@ -2,24 +2,27 @@ package net.minecraft.tileentity;
 
 import com.google.common.collect.Lists;
 import java.util.List;
-import net.minecraft.block.BlockFlower;
-import net.minecraft.init.Blocks;
-import net.minecraft.init.Items;
+import javax.annotation.Nullable;
 import net.minecraft.item.EnumDyeColor;
+import net.minecraft.item.ItemBanner;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
-import net.minecraft.network.Packet;
-import net.minecraft.network.play.server.S35PacketUpdateTileEntity;
+import net.minecraft.network.play.server.SPacketUpdateTileEntity;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextComponentTranslation;
+import net.minecraft.world.IWorldNameable;
 
-public class TileEntityBanner extends TileEntity
+public class TileEntityBanner extends TileEntity implements IWorldNameable
 {
-    private int baseColor;
+    private String name;
+    private EnumDyeColor baseColor = EnumDyeColor.BLACK;
 
     /** A list of all the banner patterns. */
     private NBTTagList patterns;
-    private boolean field_175119_g;
-    private List<TileEntityBanner.EnumBannerPattern> patternList;
+    private boolean patternDataSet;
+    private List<BannerPattern> patternList;
     private List<EnumDyeColor> colorList;
 
     /**
@@ -27,86 +30,162 @@ public class TileEntityBanner extends TileEntity
      */
     private String patternResourceLocation;
 
-    public void setItemValues(ItemStack stack)
+    public void setItemValues(ItemStack stack, boolean p_175112_2_)
     {
         this.patterns = null;
+        NBTTagCompound nbttagcompound = stack.getSubCompound("BlockEntityTag");
 
-        if (stack.hasTagCompound() && stack.getTagCompound().hasKey("BlockEntityTag", 10))
+        if (nbttagcompound != null && nbttagcompound.hasKey("Patterns", 9))
         {
-            NBTTagCompound nbttagcompound = stack.getTagCompound().getCompoundTag("BlockEntityTag");
-
-            if (nbttagcompound.hasKey("Patterns"))
-            {
-                this.patterns = (NBTTagList)nbttagcompound.getTagList("Patterns", 10).copy();
-            }
-
-            if (nbttagcompound.hasKey("Base", 99))
-            {
-                this.baseColor = nbttagcompound.getInteger("Base");
-            }
-            else
-            {
-                this.baseColor = stack.getMetadata() & 15;
-            }
-        }
-        else
-        {
-            this.baseColor = stack.getMetadata() & 15;
+            this.patterns = nbttagcompound.getTagList("Patterns", 10).copy();
         }
 
+        this.baseColor = p_175112_2_ ? getColor(stack) : ItemBanner.getBaseColor(stack);
         this.patternList = null;
         this.colorList = null;
         this.patternResourceLocation = "";
-        this.field_175119_g = true;
+        this.patternDataSet = true;
+        this.name = stack.hasDisplayName() ? stack.getDisplayName() : null;
     }
 
-    public void writeToNBT(NBTTagCompound compound)
+    /**
+     * Gets the name of this thing. This method has slightly different behavior depending on the interface (for <a
+     * href="https://github.com/ModCoderPack/MCPBot-Issues/issues/14">technical reasons</a> the same method is used for
+     * both IWorldNameable and ICommandSender):
+     *  
+     * <dl>
+     * <dt>{@link net.minecraft.util.INameable#getName() INameable.getName()}</dt>
+     * <dd>Returns the name of this inventory. If this {@linkplain net.minecraft.inventory#hasCustomName() has a custom
+     * name} then this <em>should</em> be a direct string; otherwise it <em>should</em> be a valid translation
+     * string.</dd>
+     * <dd>However, note that <strong>the translation string may be invalid</strong>, as is the case for {@link
+     * net.minecraft.tileentity.TileEntityBanner TileEntityBanner} (always returns nonexistent translation code
+     * <code>banner</code> without a custom name), {@link net.minecraft.block.BlockAnvil.Anvil BlockAnvil$Anvil} (always
+     * returns <code>anvil</code>), {@link net.minecraft.block.BlockWorkbench.InterfaceCraftingTable
+     * BlockWorkbench$InterfaceCraftingTable} (always returns <code>crafting_table</code>), {@link
+     * net.minecraft.inventory.InventoryCraftResult InventoryCraftResult} (always returns <code>Result</code>) and the
+     * {@link net.minecraft.entity.item.EntityMinecart EntityMinecart} family (uses the entity definition). This is not
+     * an exaustive list.</dd>
+     * <dd>In general, this method should be safe to use on tile entities that implement IInventory.</dd>
+     * <dt>{@link net.minecraft.command.ICommandSender#getName() ICommandSender.getName()} and {@link
+     * net.minecraft.entity.Entity#getName() Entity.getName()}</dt>
+     * <dd>Returns a valid, displayable name (which may be localized). For most entities, this is the translated version
+     * of its translation string (obtained via {@link net.minecraft.entity.EntityList#getEntityString
+     * EntityList.getEntityString}).</dd>
+     * <dd>If this entity has a custom name set, this will return that name.</dd>
+     * <dd>For some entities, this will attempt to translate a nonexistent translation string; see <a
+     * href="https://bugs.mojang.com/browse/MC-68446">MC-68446</a>. For {@linkplain
+     * net.minecraft.entity.player.EntityPlayer#getName() players} this returns the player's name. For {@linkplain
+     * net.minecraft.entity.passive.EntityOcelot ocelots} this may return the translation of
+     * <code>entity.Cat.name</code> if it is tamed. For {@linkplain net.minecraft.entity.item.EntityItem#getName() item
+     * entities}, this will attempt to return the name of the item in that item entity. In all cases other than players,
+     * the custom name will overrule this.</dd>
+     * <dd>For non-entity command senders, this will return some arbitrary name, such as "Rcon" or "Server".</dd>
+     * </dl>
+     */
+    public String getName()
+    {
+        return this.hasCustomName() ? this.name : "banner";
+    }
+
+    /**
+     * Checks if this thing has a custom name. This method has slightly different behavior depending on the interface
+     * (for <a href="https://github.com/ModCoderPack/MCPBot-Issues/issues/14">technical reasons</a> the same method is
+     * used for both IWorldNameable and Entity):
+     *  
+     * <dl>
+     * <dt>{@link net.minecraft.util.INameable#hasCustomName() INameable.hasCustomName()}</dt>
+     * <dd>If true, then {@link #getName()} probably returns a preformatted name; otherwise, it probably returns a
+     * translation string. However, exact behavior varies.</dd>
+     * <dt>{@link net.minecraft.entity.Entity#hasCustomName() Entity.hasCustomName()}</dt>
+     * <dd>If true, then {@link net.minecraft.entity.Entity#getCustomNameTag() Entity.getCustomNameTag()} will return a
+     * non-empty string, which will be used by {@link #getName()}.</dd>
+     * </dl>
+     */
+    public boolean hasCustomName()
+    {
+        return this.name != null && !this.name.isEmpty();
+    }
+
+    /**
+     * Returns a displayable component representing this thing's name. This method should be implemented slightly
+     * differently depending on the interface (for <a href="https://github.com/ModCoderPack/MCPBot-
+     * Issues/issues/14">technical reasons</a> the same method is used for both IWorldNameable and ICommandSender), but
+     * unlike {@link #getName()} this method will generally behave sanely.
+     *  
+     * <dl>
+     * <dt>{@link net.minecraft.util.INameable#getDisplayName() INameable.getDisplayName()}</dt>
+     * <dd>A normal component. Might be a translation component or a text component depending on the context. Usually
+     * implemented as:</dd>
+     * <dd><pre><code>return this.{@link net.minecraft.util.INameable#hasCustomName() hasCustomName()} ? new
+     * TextComponentString(this.{@link #getName()}) : new TextComponentTranslation(this.{@link
+     * #getName()});</code></pre></dd>
+     * <dt>{@link net.minecraft.command.ICommandSender#getDisplayName() ICommandSender.getDisplayName()} and {@link
+     * net.minecraft.entity.Entity#getDisplayName() Entity.getDisplayName()}</dt>
+     * <dd>For most entities, this returns the result of {@link #getName()}, with {@linkplain
+     * net.minecraft.scoreboard.ScorePlayerTeam#formatPlayerName scoreboard formatting} and a {@linkplain
+     * net.minecraft.entity.Entity#getHoverEvent special hover event}.</dd>
+     * <dd>For non-entity command senders, this will return the result of {@link #getName()} in a text component.</dd>
+     * </dl>
+     */
+    public ITextComponent getDisplayName()
+    {
+        return (ITextComponent)(this.hasCustomName() ? new TextComponentString(this.getName()) : new TextComponentTranslation(this.getName(), new Object[0]));
+    }
+
+    public NBTTagCompound writeToNBT(NBTTagCompound compound)
     {
         super.writeToNBT(compound);
-        setBaseColorAndPatterns(compound, this.baseColor, this.patterns);
-    }
+        compound.setInteger("Base", this.baseColor.getDyeDamage());
 
-    public static void setBaseColorAndPatterns(NBTTagCompound compound, int baseColorIn, NBTTagList patternsIn)
-    {
-        compound.setInteger("Base", baseColorIn);
-
-        if (patternsIn != null)
+        if (this.patterns != null)
         {
-            compound.setTag("Patterns", patternsIn);
+            compound.setTag("Patterns", this.patterns);
         }
+
+        if (this.hasCustomName())
+        {
+            compound.setString("CustomName", this.name);
+        }
+
+        return compound;
     }
 
     public void readFromNBT(NBTTagCompound compound)
     {
         super.readFromNBT(compound);
-        this.baseColor = compound.getInteger("Base");
+
+        if (compound.hasKey("CustomName", 8))
+        {
+            this.name = compound.getString("CustomName");
+        }
+
+        this.baseColor = EnumDyeColor.byDyeDamage(compound.getInteger("Base"));
         this.patterns = compound.getTagList("Patterns", 10);
         this.patternList = null;
         this.colorList = null;
         this.patternResourceLocation = null;
-        this.field_175119_g = true;
+        this.patternDataSet = true;
+    }
+
+    @Nullable
+
+    /**
+     * Retrieves packet to send to the client whenever this Tile Entity is resynced via World.notifyBlockUpdate. For
+     * modded TE's, this packet comes back to you clientside in {@link #onDataPacket}
+     */
+    public SPacketUpdateTileEntity getUpdatePacket()
+    {
+        return new SPacketUpdateTileEntity(this.pos, 6, this.getUpdateTag());
     }
 
     /**
-     * Allows for a specialized description packet to be created. This is often used to sync tile entity data from the
-     * server to the client easily. For example this is used by signs to synchronise the text to be displayed.
+     * Get an NBT compound to sync to the client with SPacketChunkData, used for initial loading of the chunk or when
+     * many blocks change at once. This compound comes back to you clientside in {@link handleUpdateTag}
      */
-    public Packet getDescriptionPacket()
+    public NBTTagCompound getUpdateTag()
     {
-        NBTTagCompound nbttagcompound = new NBTTagCompound();
-        this.writeToNBT(nbttagcompound);
-        return new S35PacketUpdateTileEntity(this.pos, 6, nbttagcompound);
-    }
-
-    public int getBaseColor()
-    {
-        return this.baseColor;
-    }
-
-    public static int getBaseColor(ItemStack stack)
-    {
-        NBTTagCompound nbttagcompound = stack.getSubCompound("BlockEntityTag", false);
-        return nbttagcompound != null && nbttagcompound.hasKey("Base") ? nbttagcompound.getInteger("Base") : stack.getMetadata();
+        return this.writeToNBT(new NBTTagCompound());
     }
 
     /**
@@ -114,19 +193,14 @@ public class TileEntityBanner extends TileEntity
      */
     public static int getPatterns(ItemStack stack)
     {
-        NBTTagCompound nbttagcompound = stack.getSubCompound("BlockEntityTag", false);
+        NBTTagCompound nbttagcompound = stack.getSubCompound("BlockEntityTag");
         return nbttagcompound != null && nbttagcompound.hasKey("Patterns") ? nbttagcompound.getTagList("Patterns", 10).tagCount() : 0;
     }
 
-    public List<TileEntityBanner.EnumBannerPattern> getPatternList()
+    public List<BannerPattern> getPatternList()
     {
         this.initializeBannerData();
         return this.patternList;
-    }
-
-    public NBTTagList getPatterns()
-    {
-        return this.patterns;
     }
 
     public List<EnumDyeColor> getColorList()
@@ -149,31 +223,31 @@ public class TileEntityBanner extends TileEntity
     {
         if (this.patternList == null || this.colorList == null || this.patternResourceLocation == null)
         {
-            if (!this.field_175119_g)
+            if (!this.patternDataSet)
             {
                 this.patternResourceLocation = "";
             }
             else
             {
-                this.patternList = Lists.<TileEntityBanner.EnumBannerPattern>newArrayList();
+                this.patternList = Lists.<BannerPattern>newArrayList();
                 this.colorList = Lists.<EnumDyeColor>newArrayList();
-                this.patternList.add(TileEntityBanner.EnumBannerPattern.BASE);
-                this.colorList.add(EnumDyeColor.byDyeDamage(this.baseColor));
-                this.patternResourceLocation = "b" + this.baseColor;
+                this.patternList.add(BannerPattern.BASE);
+                this.colorList.add(this.baseColor);
+                this.patternResourceLocation = "b" + this.baseColor.getDyeDamage();
 
                 if (this.patterns != null)
                 {
                     for (int i = 0; i < this.patterns.tagCount(); ++i)
                     {
                         NBTTagCompound nbttagcompound = this.patterns.getCompoundTagAt(i);
-                        TileEntityBanner.EnumBannerPattern tileentitybanner$enumbannerpattern = TileEntityBanner.EnumBannerPattern.getPatternByID(nbttagcompound.getString("Pattern"));
+                        BannerPattern bannerpattern = BannerPattern.byHash(nbttagcompound.getString("Pattern"));
 
-                        if (tileentitybanner$enumbannerpattern != null)
+                        if (bannerpattern != null)
                         {
-                            this.patternList.add(tileentitybanner$enumbannerpattern);
+                            this.patternList.add(bannerpattern);
                             int j = nbttagcompound.getInteger("Color");
                             this.colorList.add(EnumDyeColor.byDyeDamage(j));
-                            this.patternResourceLocation = this.patternResourceLocation + tileentitybanner$enumbannerpattern.getPatternID() + j;
+                            this.patternResourceLocation = this.patternResourceLocation + bannerpattern.getHashname() + j;
                         }
                     }
                 }
@@ -186,21 +260,21 @@ public class TileEntityBanner extends TileEntity
      */
     public static void removeBannerData(ItemStack stack)
     {
-        NBTTagCompound nbttagcompound = stack.getSubCompound("BlockEntityTag", false);
+        NBTTagCompound nbttagcompound = stack.getSubCompound("BlockEntityTag");
 
         if (nbttagcompound != null && nbttagcompound.hasKey("Patterns", 9))
         {
             NBTTagList nbttaglist = nbttagcompound.getTagList("Patterns", 10);
 
-            if (nbttaglist.tagCount() > 0)
+            if (!nbttaglist.isEmpty())
             {
                 nbttaglist.removeTag(nbttaglist.tagCount() - 1);
 
-                if (nbttaglist.hasNoTags())
+                if (nbttaglist.isEmpty())
                 {
                     stack.getTagCompound().removeTag("BlockEntityTag");
 
-                    if (stack.getTagCompound().hasNoTags())
+                    if (stack.getTagCompound().isEmpty())
                     {
                         stack.setTagCompound((NBTTagCompound)null);
                     }
@@ -209,115 +283,21 @@ public class TileEntityBanner extends TileEntity
         }
     }
 
-    public static enum EnumBannerPattern
+    public ItemStack getItem()
     {
-        BASE("base", "b"),
-        SQUARE_BOTTOM_LEFT("square_bottom_left", "bl", "   ", "   ", "#  "),
-        SQUARE_BOTTOM_RIGHT("square_bottom_right", "br", "   ", "   ", "  #"),
-        SQUARE_TOP_LEFT("square_top_left", "tl", "#  ", "   ", "   "),
-        SQUARE_TOP_RIGHT("square_top_right", "tr", "  #", "   ", "   "),
-        STRIPE_BOTTOM("stripe_bottom", "bs", "   ", "   ", "###"),
-        STRIPE_TOP("stripe_top", "ts", "###", "   ", "   "),
-        STRIPE_LEFT("stripe_left", "ls", "#  ", "#  ", "#  "),
-        STRIPE_RIGHT("stripe_right", "rs", "  #", "  #", "  #"),
-        STRIPE_CENTER("stripe_center", "cs", " # ", " # ", " # "),
-        STRIPE_MIDDLE("stripe_middle", "ms", "   ", "###", "   "),
-        STRIPE_DOWNRIGHT("stripe_downright", "drs", "#  ", " # ", "  #"),
-        STRIPE_DOWNLEFT("stripe_downleft", "dls", "  #", " # ", "#  "),
-        STRIPE_SMALL("small_stripes", "ss", "# #", "# #", "   "),
-        CROSS("cross", "cr", "# #", " # ", "# #"),
-        STRAIGHT_CROSS("straight_cross", "sc", " # ", "###", " # "),
-        TRIANGLE_BOTTOM("triangle_bottom", "bt", "   ", " # ", "# #"),
-        TRIANGLE_TOP("triangle_top", "tt", "# #", " # ", "   "),
-        TRIANGLES_BOTTOM("triangles_bottom", "bts", "   ", "# #", " # "),
-        TRIANGLES_TOP("triangles_top", "tts", " # ", "# #", "   "),
-        DIAGONAL_LEFT("diagonal_left", "ld", "## ", "#  ", "   "),
-        DIAGONAL_RIGHT("diagonal_up_right", "rd", "   ", "  #", " ##"),
-        DIAGONAL_LEFT_MIRROR("diagonal_up_left", "lud", "   ", "#  ", "## "),
-        DIAGONAL_RIGHT_MIRROR("diagonal_right", "rud", " ##", "  #", "   "),
-        CIRCLE_MIDDLE("circle", "mc", "   ", " # ", "   "),
-        RHOMBUS_MIDDLE("rhombus", "mr", " # ", "# #", " # "),
-        HALF_VERTICAL("half_vertical", "vh", "## ", "## ", "## "),
-        HALF_HORIZONTAL("half_horizontal", "hh", "###", "###", "   "),
-        HALF_VERTICAL_MIRROR("half_vertical_right", "vhr", " ##", " ##", " ##"),
-        HALF_HORIZONTAL_MIRROR("half_horizontal_bottom", "hhb", "   ", "###", "###"),
-        BORDER("border", "bo", "###", "# #", "###"),
-        CURLY_BORDER("curly_border", "cbo", new ItemStack(Blocks.vine)),
-        CREEPER("creeper", "cre", new ItemStack(Items.skull, 1, 4)),
-        GRADIENT("gradient", "gra", "# #", " # ", " # "),
-        GRADIENT_UP("gradient_up", "gru", " # ", " # ", "# #"),
-        BRICKS("bricks", "bri", new ItemStack(Blocks.brick_block)),
-        SKULL("skull", "sku", new ItemStack(Items.skull, 1, 1)),
-        FLOWER("flower", "flo", new ItemStack(Blocks.red_flower, 1, BlockFlower.EnumFlowerType.OXEYE_DAISY.getMeta())),
-        MOJANG("mojang", "moj", new ItemStack(Items.golden_apple, 1, 1));
+        ItemStack itemstack = ItemBanner.makeBanner(this.baseColor, this.patterns);
 
-        private String patternName;
-        private String patternID;
-        private String[] craftingLayers;
-        private ItemStack patternCraftingStack;
-
-        private EnumBannerPattern(String name, String id)
+        if (this.hasCustomName())
         {
-            this.craftingLayers = new String[3];
-            this.patternName = name;
-            this.patternID = id;
+            itemstack.setStackDisplayName(this.getName());
         }
 
-        private EnumBannerPattern(String name, String id, ItemStack craftingItem)
-        {
-            this(name, id);
-            this.patternCraftingStack = craftingItem;
-        }
+        return itemstack;
+    }
 
-        private EnumBannerPattern(String name, String id, String craftingTop, String craftingMid, String craftingBot)
-        {
-            this(name, id);
-            this.craftingLayers[0] = craftingTop;
-            this.craftingLayers[1] = craftingMid;
-            this.craftingLayers[2] = craftingBot;
-        }
-
-        public String getPatternName()
-        {
-            return this.patternName;
-        }
-
-        public String getPatternID()
-        {
-            return this.patternID;
-        }
-
-        public String[] getCraftingLayers()
-        {
-            return this.craftingLayers;
-        }
-
-        public boolean hasValidCrafting()
-        {
-            return this.patternCraftingStack != null || this.craftingLayers[0] != null;
-        }
-
-        public boolean hasCraftingStack()
-        {
-            return this.patternCraftingStack != null;
-        }
-
-        public ItemStack getCraftingStack()
-        {
-            return this.patternCraftingStack;
-        }
-
-        public static TileEntityBanner.EnumBannerPattern getPatternByID(String id)
-        {
-            for (TileEntityBanner.EnumBannerPattern tileentitybanner$enumbannerpattern : values())
-            {
-                if (tileentitybanner$enumbannerpattern.patternID.equals(id))
-                {
-                    return tileentitybanner$enumbannerpattern;
-                }
-            }
-
-            return null;
-        }
+    public static EnumDyeColor getColor(ItemStack p_190616_0_)
+    {
+        NBTTagCompound nbttagcompound = p_190616_0_.getSubCompound("BlockEntityTag");
+        return nbttagcompound != null && nbttagcompound.hasKey("Base") ? EnumDyeColor.byDyeDamage(nbttagcompound.getInteger("Base")) : EnumDyeColor.BLACK;
     }
 }

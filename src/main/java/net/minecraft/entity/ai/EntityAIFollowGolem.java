@@ -6,14 +6,14 @@ import net.minecraft.entity.passive.EntityVillager;
 
 public class EntityAIFollowGolem extends EntityAIBase
 {
-    private EntityVillager theVillager;
-    private EntityIronGolem theGolem;
+    private final EntityVillager villager;
+    private EntityIronGolem ironGolem;
     private int takeGolemRoseTick;
     private boolean tookGolemRose;
 
-    public EntityAIFollowGolem(EntityVillager theVillagerIn)
+    public EntityAIFollowGolem(EntityVillager villagerIn)
     {
-        this.theVillager = theVillagerIn;
+        this.villager = villagerIn;
         this.setMutexBits(3);
     }
 
@@ -22,17 +22,17 @@ public class EntityAIFollowGolem extends EntityAIBase
      */
     public boolean shouldExecute()
     {
-        if (this.theVillager.getGrowingAge() >= 0)
+        if (this.villager.getGrowingAge() >= 0)
         {
             return false;
         }
-        else if (!this.theVillager.worldObj.isDaytime())
+        else if (!this.villager.world.isDaytime())
         {
             return false;
         }
         else
         {
-            List<EntityIronGolem> list = this.theVillager.worldObj.<EntityIronGolem>getEntitiesWithinAABB(EntityIronGolem.class, this.theVillager.getEntityBoundingBox().expand(6.0D, 2.0D, 6.0D));
+            List<EntityIronGolem> list = this.villager.world.<EntityIronGolem>getEntitiesWithinAABB(EntityIronGolem.class, this.villager.getEntityBoundingBox().grow(6.0D, 2.0D, 6.0D));
 
             if (list.isEmpty())
             {
@@ -44,12 +44,12 @@ public class EntityAIFollowGolem extends EntityAIBase
                 {
                     if (entityirongolem.getHoldRoseTick() > 0)
                     {
-                        this.theGolem = entityirongolem;
+                        this.ironGolem = entityirongolem;
                         break;
                     }
                 }
 
-                return this.theGolem != null;
+                return this.ironGolem != null;
             }
         }
     }
@@ -57,9 +57,9 @@ public class EntityAIFollowGolem extends EntityAIBase
     /**
      * Returns whether an in-progress EntityAIBase should continue executing
      */
-    public boolean continueExecuting()
+    public boolean shouldContinueExecuting()
     {
-        return this.theGolem.getHoldRoseTick() > 0;
+        return this.ironGolem.getHoldRoseTick() > 0;
     }
 
     /**
@@ -67,37 +67,37 @@ public class EntityAIFollowGolem extends EntityAIBase
      */
     public void startExecuting()
     {
-        this.takeGolemRoseTick = this.theVillager.getRNG().nextInt(320);
+        this.takeGolemRoseTick = this.villager.getRNG().nextInt(320);
         this.tookGolemRose = false;
-        this.theGolem.getNavigator().clearPathEntity();
+        this.ironGolem.getNavigator().clearPath();
     }
 
     /**
-     * Resets the task
+     * Reset the task's internal state. Called when this task is interrupted by another one
      */
     public void resetTask()
     {
-        this.theGolem = null;
-        this.theVillager.getNavigator().clearPathEntity();
+        this.ironGolem = null;
+        this.villager.getNavigator().clearPath();
     }
 
     /**
-     * Updates the task
+     * Keep ticking a continuous task that has already been started
      */
     public void updateTask()
     {
-        this.theVillager.getLookHelper().setLookPositionWithEntity(this.theGolem, 30.0F, 30.0F);
+        this.villager.getLookHelper().setLookPositionWithEntity(this.ironGolem, 30.0F, 30.0F);
 
-        if (this.theGolem.getHoldRoseTick() == this.takeGolemRoseTick)
+        if (this.ironGolem.getHoldRoseTick() == this.takeGolemRoseTick)
         {
-            this.theVillager.getNavigator().tryMoveToEntityLiving(this.theGolem, 0.5D);
+            this.villager.getNavigator().tryMoveToEntityLiving(this.ironGolem, 0.5D);
             this.tookGolemRose = true;
         }
 
-        if (this.tookGolemRose && this.theVillager.getDistanceSqToEntity(this.theGolem) < 4.0D)
+        if (this.tookGolemRose && this.villager.getDistanceSq(this.ironGolem) < 4.0D)
         {
-            this.theGolem.setHoldingRose(false);
-            this.theVillager.getNavigator().clearPathEntity();
+            this.ironGolem.setHoldingRose(false);
+            this.villager.getNavigator().clearPath();
         }
     }
 }

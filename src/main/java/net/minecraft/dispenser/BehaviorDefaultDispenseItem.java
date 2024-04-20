@@ -15,7 +15,7 @@ public class BehaviorDefaultDispenseItem implements IBehaviorDispenseItem
     {
         ItemStack itemstack = this.dispenseStack(source, stack);
         this.playDispenseSound(source);
-        this.spawnDispenseParticles(source, BlockDispenser.getFacing(source.getBlockMetadata()));
+        this.spawnDispenseParticles(source, (EnumFacing)source.getBlockState().getValue(BlockDispenser.FACING));
         return itemstack;
     }
 
@@ -24,7 +24,7 @@ public class BehaviorDefaultDispenseItem implements IBehaviorDispenseItem
      */
     protected ItemStack dispenseStack(IBlockSource source, ItemStack stack)
     {
-        EnumFacing enumfacing = BlockDispenser.getFacing(source.getBlockMetadata());
+        EnumFacing enumfacing = (EnumFacing)source.getBlockState().getValue(BlockDispenser.FACING);
         IPosition iposition = BlockDispenser.getDispensePosition(source);
         ItemStack itemstack = stack.splitStack(1);
         doDispense(source.getWorld(), itemstack, 6, enumfacing, iposition);
@@ -48,13 +48,13 @@ public class BehaviorDefaultDispenseItem implements IBehaviorDispenseItem
 
         EntityItem entityitem = new EntityItem(worldIn, d0, d1, d2, stack);
         double d3 = worldIn.rand.nextDouble() * 0.1D + 0.2D;
-        entityitem.motionX = (double)facing.getFrontOffsetX() * d3;
+        entityitem.motionX = (double)facing.getXOffset() * d3;
         entityitem.motionY = 0.20000000298023224D;
-        entityitem.motionZ = (double)facing.getFrontOffsetZ() * d3;
+        entityitem.motionZ = (double)facing.getZOffset() * d3;
         entityitem.motionX += worldIn.rand.nextGaussian() * 0.007499999832361937D * (double)speed;
         entityitem.motionY += worldIn.rand.nextGaussian() * 0.007499999832361937D * (double)speed;
         entityitem.motionZ += worldIn.rand.nextGaussian() * 0.007499999832361937D * (double)speed;
-        worldIn.spawnEntityInWorld(entityitem);
+        worldIn.spawnEntity(entityitem);
     }
 
     /**
@@ -62,7 +62,7 @@ public class BehaviorDefaultDispenseItem implements IBehaviorDispenseItem
      */
     protected void playDispenseSound(IBlockSource source)
     {
-        source.getWorld().playAuxSFX(1000, source.getBlockPos(), 0);
+        source.getWorld().playEvent(1000, source.getBlockPos(), 0);
     }
 
     /**
@@ -70,11 +70,11 @@ public class BehaviorDefaultDispenseItem implements IBehaviorDispenseItem
      */
     protected void spawnDispenseParticles(IBlockSource source, EnumFacing facingIn)
     {
-        source.getWorld().playAuxSFX(2000, source.getBlockPos(), this.func_82488_a(facingIn));
+        source.getWorld().playEvent(2000, source.getBlockPos(), this.getWorldEventDataFrom(facingIn));
     }
 
-    private int func_82488_a(EnumFacing facingIn)
+    private int getWorldEventDataFrom(EnumFacing facingIn)
     {
-        return facingIn.getFrontOffsetX() + 1 + (facingIn.getFrontOffsetZ() + 1) * 3;
+        return facingIn.getXOffset() + 1 + (facingIn.getZOffset() + 1) * 3;
     }
 }

@@ -5,7 +5,7 @@ import net.minecraft.entity.EntityLiving;
 public class EntityAILookIdle extends EntityAIBase
 {
     /** The entity that is looking idle. */
-    private EntityLiving idleEntity;
+    private final EntityLiving idleEntity;
 
     /** X offset to look at */
     private double lookX;
@@ -35,7 +35,7 @@ public class EntityAILookIdle extends EntityAIBase
     /**
      * Returns whether an in-progress EntityAIBase should continue executing
      */
-    public boolean continueExecuting()
+    public boolean shouldContinueExecuting()
     {
         return this.idleTime >= 0;
     }
@@ -52,11 +52,11 @@ public class EntityAILookIdle extends EntityAIBase
     }
 
     /**
-     * Updates the task
+     * Keep ticking a continuous task that has already been started
      */
     public void updateTask()
     {
         --this.idleTime;
-        this.idleEntity.getLookHelper().setLookPosition(this.idleEntity.posX + this.lookX, this.idleEntity.posY + (double)this.idleEntity.getEyeHeight(), this.idleEntity.posZ + this.lookZ, 10.0F, (float)this.idleEntity.getVerticalFaceSpeed());
+        this.idleEntity.getLookHelper().setLookPosition(this.idleEntity.posX + this.lookX, this.idleEntity.posY + (double)this.idleEntity.getEyeHeight(), this.idleEntity.posZ + this.lookZ, (float)this.idleEntity.getHorizontalFaceSpeed(), (float)this.idleEntity.getVerticalFaceSpeed());
     }
 }

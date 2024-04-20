@@ -1,9 +1,11 @@
 package net.minecraft.command;
 
+import java.util.Collections;
 import java.util.List;
+import javax.annotation.Nullable;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.util.BlockPos;
-import net.minecraft.util.ChatComponentTranslation;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.EnumDifficulty;
 
 public class CommandDifficulty extends CommandBase
@@ -11,7 +13,7 @@ public class CommandDifficulty extends CommandBase
     /**
      * Gets the name of the command
      */
-    public String getCommandName()
+    public String getName()
     {
         return "difficulty";
     }
@@ -27,15 +29,15 @@ public class CommandDifficulty extends CommandBase
     /**
      * Gets the usage string for the command.
      */
-    public String getCommandUsage(ICommandSender sender)
+    public String getUsage(ICommandSender sender)
     {
         return "commands.difficulty.usage";
     }
 
     /**
-     * Callback when the command is invoked
+     * Callback for when the command is executed
      */
-    public void processCommand(ICommandSender sender, String[] args) throws CommandException
+    public void execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException
     {
         if (args.length <= 0)
         {
@@ -44,18 +46,39 @@ public class CommandDifficulty extends CommandBase
         else
         {
             EnumDifficulty enumdifficulty = this.getDifficultyFromCommand(args[0]);
-            MinecraftServer.getServer().setDifficultyForAllWorlds(enumdifficulty);
-            notifyOperators(sender, this, "commands.difficulty.success", new Object[] {new ChatComponentTranslation(enumdifficulty.getDifficultyResourceKey(), new Object[0])});
+            server.setDifficultyForAllWorlds(enumdifficulty);
+            notifyCommandListener(sender, this, "commands.difficulty.success", new Object[] {new TextComponentTranslation(enumdifficulty.getTranslationKey(), new Object[0])});
         }
     }
 
-    protected EnumDifficulty getDifficultyFromCommand(String p_180531_1_) throws CommandException, NumberInvalidException
+    protected EnumDifficulty getDifficultyFromCommand(String difficultyString) throws CommandException, NumberInvalidException
     {
-        return !p_180531_1_.equalsIgnoreCase("peaceful") && !p_180531_1_.equalsIgnoreCase("p") ? (!p_180531_1_.equalsIgnoreCase("easy") && !p_180531_1_.equalsIgnoreCase("e") ? (!p_180531_1_.equalsIgnoreCase("normal") && !p_180531_1_.equalsIgnoreCase("n") ? (!p_180531_1_.equalsIgnoreCase("hard") && !p_180531_1_.equalsIgnoreCase("h") ? EnumDifficulty.getDifficultyEnum(parseInt(p_180531_1_, 0, 3)) : EnumDifficulty.HARD) : EnumDifficulty.NORMAL) : EnumDifficulty.EASY) : EnumDifficulty.PEACEFUL;
+        if (!"peaceful".equalsIgnoreCase(difficultyString) && !"p".equalsIgnoreCase(difficultyString))
+        {
+            if (!"easy".equalsIgnoreCase(difficultyString) && !"e".equalsIgnoreCase(difficultyString))
+            {
+                if (!"normal".equalsIgnoreCase(difficultyString) && !"n".equalsIgnoreCase(difficultyString))
+                {
+                    return !"hard".equalsIgnoreCase(difficultyString) && !"h".equalsIgnoreCase(difficultyString) ? EnumDifficulty.byId(parseInt(difficultyString, 0, 3)) : EnumDifficulty.HARD;
+                }
+                else
+                {
+                    return EnumDifficulty.NORMAL;
+                }
+            }
+            else
+            {
+                return EnumDifficulty.EASY;
+            }
+        }
+        else
+        {
+            return EnumDifficulty.PEACEFUL;
+        }
     }
 
-    public List<String> addTabCompletionOptions(ICommandSender sender, String[] args, BlockPos pos)
+    public List<String> getTabCompletions(MinecraftServer server, ICommandSender sender, String[] args, @Nullable BlockPos targetPos)
     {
-        return args.length == 1 ? getListOfStringsMatchingLastWord(args, new String[] {"peaceful", "easy", "normal", "hard"}): null;
+        return args.length == 1 ? getListOfStringsMatchingLastWord(args, new String[] {"peaceful", "easy", "normal", "hard"}) : Collections.emptyList();
     }
 }

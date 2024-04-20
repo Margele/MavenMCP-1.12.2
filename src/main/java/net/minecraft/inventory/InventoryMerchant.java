@@ -3,24 +3,25 @@ package net.minecraft.inventory;
 import net.minecraft.entity.IMerchant;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.ChatComponentText;
-import net.minecraft.util.ChatComponentTranslation;
-import net.minecraft.util.IChatComponent;
+import net.minecraft.util.NonNullList;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.village.MerchantRecipe;
 import net.minecraft.village.MerchantRecipeList;
 
 public class InventoryMerchant implements IInventory
 {
-    private final IMerchant theMerchant;
-    private ItemStack[] theInventory = new ItemStack[3];
-    private final EntityPlayer thePlayer;
+    private final IMerchant merchant;
+    private final NonNullList<ItemStack> slots = NonNullList.<ItemStack>withSize(3, ItemStack.EMPTY);
+    private final EntityPlayer player;
     private MerchantRecipe currentRecipe;
     private int currentRecipeIndex;
 
     public InventoryMerchant(EntityPlayer thePlayerIn, IMerchant theMerchantIn)
     {
-        this.thePlayer = thePlayerIn;
-        this.theMerchant = theMerchantIn;
+        this.player = thePlayerIn;
+        this.merchant = theMerchantIn;
     }
 
     /**
@@ -28,7 +29,20 @@ public class InventoryMerchant implements IInventory
      */
     public int getSizeInventory()
     {
-        return this.theInventory.length;
+        return this.slots.size();
+    }
+
+    public boolean isEmpty()
+    {
+        for (ItemStack itemstack : this.slots)
+        {
+            if (!itemstack.isEmpty())
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -36,7 +50,7 @@ public class InventoryMerchant implements IInventory
      */
     public ItemStack getStackInSlot(int index)
     {
-        return this.theInventory[index];
+        return this.slots.get(index);
     }
 
     /**
@@ -44,55 +58,31 @@ public class InventoryMerchant implements IInventory
      */
     public ItemStack decrStackSize(int index, int count)
     {
-        if (this.theInventory[index] != null)
+        ItemStack itemstack = this.slots.get(index);
+
+        if (index == 2 && !itemstack.isEmpty())
         {
-            if (index == 2)
-            {
-                ItemStack itemstack2 = this.theInventory[index];
-                this.theInventory[index] = null;
-                return itemstack2;
-            }
-            else if (this.theInventory[index].stackSize <= count)
-            {
-                ItemStack itemstack1 = this.theInventory[index];
-                this.theInventory[index] = null;
-
-                if (this.inventoryResetNeededOnSlotChange(index))
-                {
-                    this.resetRecipeAndSlots();
-                }
-
-                return itemstack1;
-            }
-            else
-            {
-                ItemStack itemstack = this.theInventory[index].splitStack(count);
-
-                if (this.theInventory[index].stackSize == 0)
-                {
-                    this.theInventory[index] = null;
-                }
-
-                if (this.inventoryResetNeededOnSlotChange(index))
-                {
-                    this.resetRecipeAndSlots();
-                }
-
-                return itemstack;
-            }
+            return ItemStackHelper.getAndSplit(this.slots, index, itemstack.getCount());
         }
         else
         {
-            return null;
+            ItemStack itemstack1 = ItemStackHelper.getAndSplit(this.slots, index, count);
+
+            if (!itemstack1.isEmpty() && this.inventoryResetNeededOnSlotChange(index))
+            {
+                this.resetRecipeAndSlots();
+            }
+
+            return itemstack1;
         }
     }
 
     /**
      * if par1 slot has changed, does resetRecipeAndSlots need to be called?
      */
-    private boolean inventoryResetNeededOnSlotChange(int p_70469_1_)
+    private boolean inventoryResetNeededOnSlotChange(int slotIn)
     {
-        return p_70469_1_ == 0 || p_70469_1_ == 1;
+        return slotIn == 0 || slotIn == 1;
     }
 
     /**
@@ -100,16 +90,7 @@ public class InventoryMerchant implements IInventory
      */
     public ItemStack removeStackFromSlot(int index)
     {
-        if (this.theInventory[index] != null)
-        {
-            ItemStack itemstack = this.theInventory[index];
-            this.theInventory[index] = null;
-            return itemstack;
-        }
-        else
-        {
-            return null;
-        }
+        return ItemStackHelper.getAndRemove(this.slots, index);
     }
 
     /**
@@ -117,11 +98,11 @@ public class InventoryMerchant implements IInventory
      */
     public void setInventorySlotContents(int index, ItemStack stack)
     {
-        this.theInventory[index] = stack;
+        this.slots.set(index, stack);
 
-        if (stack != null && stack.stackSize > this.getInventoryStackLimit())
+        if (!stack.isEmpty() && stack.getCount() > this.getInventoryStackLimit())
         {
-            stack.stackSize = this.getInventoryStackLimit();
+            stack.setCount(this.getInventoryStackLimit());
         }
 
         if (this.inventoryResetNeededOnSlotChange(index))
@@ -131,7 +112,39 @@ public class InventoryMerchant implements IInventory
     }
 
     /**
-     * Get the name of this object. For players this returns their username
+     * Gets the name of this thing. This method has slightly different behavior depending on the interface (for <a
+     * href="https://github.com/ModCoderPack/MCPBot-Issues/issues/14">technical reasons</a> the same method is used for
+     * both IWorldNameable and ICommandSender):
+     *  
+     * <dl>
+     * <dt>{@link net.minecraft.util.INameable#getName() INameable.getName()}</dt>
+     * <dd>Returns the name of this inventory. If this {@linkplain net.minecraft.inventory#hasCustomName() has a custom
+     * name} then this <em>should</em> be a direct string; otherwise it <em>should</em> be a valid translation
+     * string.</dd>
+     * <dd>However, note that <strong>the translation string may be invalid</strong>, as is the case for {@link
+     * net.minecraft.tileentity.TileEntityBanner TileEntityBanner} (always returns nonexistent translation code
+     * <code>banner</code> without a custom name), {@link net.minecraft.block.BlockAnvil.Anvil BlockAnvil$Anvil} (always
+     * returns <code>anvil</code>), {@link net.minecraft.block.BlockWorkbench.InterfaceCraftingTable
+     * BlockWorkbench$InterfaceCraftingTable} (always returns <code>crafting_table</code>), {@link
+     * net.minecraft.inventory.InventoryCraftResult InventoryCraftResult} (always returns <code>Result</code>) and the
+     * {@link net.minecraft.entity.item.EntityMinecart EntityMinecart} family (uses the entity definition). This is not
+     * an exaustive list.</dd>
+     * <dd>In general, this method should be safe to use on tile entities that implement IInventory.</dd>
+     * <dt>{@link net.minecraft.command.ICommandSender#getName() ICommandSender.getName()} and {@link
+     * net.minecraft.entity.Entity#getName() Entity.getName()}</dt>
+     * <dd>Returns a valid, displayable name (which may be localized). For most entities, this is the translated version
+     * of its translation string (obtained via {@link net.minecraft.entity.EntityList#getEntityString
+     * EntityList.getEntityString}).</dd>
+     * <dd>If this entity has a custom name set, this will return that name.</dd>
+     * <dd>For some entities, this will attempt to translate a nonexistent translation string; see <a
+     * href="https://bugs.mojang.com/browse/MC-68446">MC-68446</a>. For {@linkplain
+     * net.minecraft.entity.player.EntityPlayer#getName() players} this returns the player's name. For {@linkplain
+     * net.minecraft.entity.passive.EntityOcelot ocelots} this may return the translation of
+     * <code>entity.Cat.name</code> if it is tamed. For {@linkplain net.minecraft.entity.item.EntityItem#getName() item
+     * entities}, this will attempt to return the name of the item in that item entity. In all cases other than players,
+     * the custom name will overrule this.</dd>
+     * <dd>For non-entity command senders, this will return some arbitrary name, such as "Rcon" or "Server".</dd>
+     * </dl>
      */
     public String getName()
     {
@@ -139,7 +152,18 @@ public class InventoryMerchant implements IInventory
     }
 
     /**
-     * Returns true if this thing is named
+     * Checks if this thing has a custom name. This method has slightly different behavior depending on the interface
+     * (for <a href="https://github.com/ModCoderPack/MCPBot-Issues/issues/14">technical reasons</a> the same method is
+     * used for both IWorldNameable and Entity):
+     *  
+     * <dl>
+     * <dt>{@link net.minecraft.util.INameable#hasCustomName() INameable.hasCustomName()}</dt>
+     * <dd>If true, then {@link #getName()} probably returns a preformatted name; otherwise, it probably returns a
+     * translation string. However, exact behavior varies.</dd>
+     * <dt>{@link net.minecraft.entity.Entity#hasCustomName() Entity.hasCustomName()}</dt>
+     * <dd>If true, then {@link net.minecraft.entity.Entity#getCustomNameTag() Entity.getCustomNameTag()} will return a
+     * non-empty string, which will be used by {@link #getName()}.</dd>
+     * </dl>
      */
     public boolean hasCustomName()
     {
@@ -147,11 +171,29 @@ public class InventoryMerchant implements IInventory
     }
 
     /**
-     * Get the formatted ChatComponent that will be used for the sender's username in chat
+     * Returns a displayable component representing this thing's name. This method should be implemented slightly
+     * differently depending on the interface (for <a href="https://github.com/ModCoderPack/MCPBot-
+     * Issues/issues/14">technical reasons</a> the same method is used for both IWorldNameable and ICommandSender), but
+     * unlike {@link #getName()} this method will generally behave sanely.
+     *  
+     * <dl>
+     * <dt>{@link net.minecraft.util.INameable#getDisplayName() INameable.getDisplayName()}</dt>
+     * <dd>A normal component. Might be a translation component or a text component depending on the context. Usually
+     * implemented as:</dd>
+     * <dd><pre><code>return this.{@link net.minecraft.util.INameable#hasCustomName() hasCustomName()} ? new
+     * TextComponentString(this.{@link #getName()}) : new TextComponentTranslation(this.{@link
+     * #getName()});</code></pre></dd>
+     * <dt>{@link net.minecraft.command.ICommandSender#getDisplayName() ICommandSender.getDisplayName()} and {@link
+     * net.minecraft.entity.Entity#getDisplayName() Entity.getDisplayName()}</dt>
+     * <dd>For most entities, this returns the result of {@link #getName()}, with {@linkplain
+     * net.minecraft.scoreboard.ScorePlayerTeam#formatPlayerName scoreboard formatting} and a {@linkplain
+     * net.minecraft.entity.Entity#getHoverEvent special hover event}.</dd>
+     * <dd>For non-entity command senders, this will return the result of {@link #getName()} in a text component.</dd>
+     * </dl>
      */
-    public IChatComponent getDisplayName()
+    public ITextComponent getDisplayName()
     {
-        return (IChatComponent)(this.hasCustomName() ? new ChatComponentText(this.getName()) : new ChatComponentTranslation(this.getName(), new Object[0]));
+        return (ITextComponent)(this.hasCustomName() ? new TextComponentString(this.getName()) : new TextComponentTranslation(this.getName(), new Object[0]));
     }
 
     /**
@@ -163,11 +205,11 @@ public class InventoryMerchant implements IInventory
     }
 
     /**
-     * Do not make give this method the name canInteractWith because it clashes with Container
+     * Don't rename this method to canInteractWith due to conflicts with Container
      */
-    public boolean isUseableByPlayer(EntityPlayer player)
+    public boolean isUsableByPlayer(EntityPlayer player)
     {
-        return this.theMerchant.getCustomer() == player;
+        return this.merchant.getCustomer() == player;
     }
 
     public void openInventory(EntityPlayer player)
@@ -179,7 +221,8 @@ public class InventoryMerchant implements IInventory
     }
 
     /**
-     * Returns true if automation is allowed to insert the given stack (ignoring stack size) into the given slot.
+     * Returns true if automation is allowed to insert the given stack (ignoring stack size) into the given slot. For
+     * guis use Slot.isItemValid
      */
     public boolean isItemValidForSlot(int index, ItemStack stack)
     {
@@ -198,22 +241,22 @@ public class InventoryMerchant implements IInventory
     public void resetRecipeAndSlots()
     {
         this.currentRecipe = null;
-        ItemStack itemstack = this.theInventory[0];
-        ItemStack itemstack1 = this.theInventory[1];
+        ItemStack itemstack = this.slots.get(0);
+        ItemStack itemstack1 = this.slots.get(1);
 
-        if (itemstack == null)
+        if (itemstack.isEmpty())
         {
             itemstack = itemstack1;
-            itemstack1 = null;
+            itemstack1 = ItemStack.EMPTY;
         }
 
-        if (itemstack == null)
+        if (itemstack.isEmpty())
         {
-            this.setInventorySlotContents(2, (ItemStack)null);
+            this.setInventorySlotContents(2, ItemStack.EMPTY);
         }
         else
         {
-            MerchantRecipeList merchantrecipelist = this.theMerchant.getRecipes(this.thePlayer);
+            MerchantRecipeList merchantrecipelist = this.merchant.getRecipes(this.player);
 
             if (merchantrecipelist != null)
             {
@@ -224,7 +267,7 @@ public class InventoryMerchant implements IInventory
                     this.currentRecipe = merchantrecipe;
                     this.setInventorySlotContents(2, merchantrecipe.getItemToSell().copy());
                 }
-                else if (itemstack1 != null)
+                else if (!itemstack1.isEmpty())
                 {
                     merchantrecipe = merchantrecipelist.canRecipeBeUsed(itemstack1, itemstack, this.currentRecipeIndex);
 
@@ -235,17 +278,17 @@ public class InventoryMerchant implements IInventory
                     }
                     else
                     {
-                        this.setInventorySlotContents(2, (ItemStack)null);
+                        this.setInventorySlotContents(2, ItemStack.EMPTY);
                     }
                 }
                 else
                 {
-                    this.setInventorySlotContents(2, (ItemStack)null);
+                    this.setInventorySlotContents(2, ItemStack.EMPTY);
                 }
             }
-        }
 
-        this.theMerchant.verifySellingItem(this.getStackInSlot(2));
+            this.merchant.verifySellingItem(this.getStackInSlot(2));
+        }
     }
 
     public MerchantRecipe getCurrentRecipe()
@@ -275,9 +318,6 @@ public class InventoryMerchant implements IInventory
 
     public void clear()
     {
-        for (int i = 0; i < this.theInventory.length; ++i)
-        {
-            this.theInventory[i] = null;
-        }
+        this.slots.clear();
     }
 }

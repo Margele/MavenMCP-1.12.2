@@ -5,8 +5,14 @@ import net.minecraft.item.ItemStack;
 
 public class ContainerChest extends Container
 {
-    private IInventory lowerChestInventory;
-    private int numRows;
+    /**
+     * On the server, this may be a {@link net.minecraft.tileentity.TileEntityChest} (corresponding to a single chest
+     * block) or an {@link net.minecraft.inventory.InventoryLargeChest} (corresponding to a large chest); chests larger
+     * than 2 chest blocks are represented by several nested InventoryLargeChests. See {@link
+     * net.minecraft.block.BlockChest#getContainer()} for more information. On the client, this is an InventoryBasic.
+     */
+    private final IInventory lowerChestInventory;
+    private final int numRows;
 
     public ContainerChest(IInventory playerInventory, IInventory chestInventory, EntityPlayer player)
     {
@@ -37,18 +43,22 @@ public class ContainerChest extends Container
         }
     }
 
+    /**
+     * Determines whether supplied player can use this container
+     */
     public boolean canInteractWith(EntityPlayer playerIn)
     {
-        return this.lowerChestInventory.isUseableByPlayer(playerIn);
+        return this.lowerChestInventory.isUsableByPlayer(playerIn);
     }
 
     /**
-     * Take a stack from the specified inventory slot.
+     * Handle when the stack in slot {@code index} is shift-clicked. Normally this moves the stack between the player
+     * inventory and the other inventory(s).
      */
     public ItemStack transferStackInSlot(EntityPlayer playerIn, int index)
     {
-        ItemStack itemstack = null;
-        Slot slot = (Slot)this.inventorySlots.get(index);
+        ItemStack itemstack = ItemStack.EMPTY;
+        Slot slot = this.inventorySlots.get(index);
 
         if (slot != null && slot.getHasStack())
         {
@@ -59,17 +69,17 @@ public class ContainerChest extends Container
             {
                 if (!this.mergeItemStack(itemstack1, this.numRows * 9, this.inventorySlots.size(), true))
                 {
-                    return null;
+                    return ItemStack.EMPTY;
                 }
             }
             else if (!this.mergeItemStack(itemstack1, 0, this.numRows * 9, false))
             {
-                return null;
+                return ItemStack.EMPTY;
             }
 
-            if (itemstack1.stackSize == 0)
+            if (itemstack1.isEmpty())
             {
-                slot.putStack((ItemStack)null);
+                slot.putStack(ItemStack.EMPTY);
             }
             else
             {
@@ -90,7 +100,9 @@ public class ContainerChest extends Container
     }
 
     /**
-     * Return this chest container's lower chest inventory.
+     * Gets the inventory associated with this chest container.
+     *  
+     * @see #lowerChestInventory
      */
     public IInventory getLowerChestInventory()
     {

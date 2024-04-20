@@ -39,7 +39,7 @@ public class ModelMagmaCube extends ModelBase
      * Used for easily adding entity-dependent animations. The second and third float params here are the same second
      * and third as in the setRotationAngles method.
      */
-    public void setLivingAnimations(EntityLivingBase entitylivingbaseIn, float p_78086_2_, float p_78086_3_, float partialTickTime)
+    public void setLivingAnimations(EntityLivingBase entitylivingbaseIn, float limbSwing, float limbSwingAmount, float partialTickTime)
     {
         EntityMagmaCube entitymagmacube = (EntityMagmaCube)entitylivingbaseIn;
         float f = entitymagmacube.prevSquishFactor + (entitymagmacube.squishFactor - entitymagmacube.prevSquishFactor) * partialTickTime;
@@ -58,14 +58,14 @@ public class ModelMagmaCube extends ModelBase
     /**
      * Sets the models various rotation angles then renders the model.
      */
-    public void render(Entity entityIn, float p_78088_2_, float p_78088_3_, float p_78088_4_, float p_78088_5_, float p_78088_6_, float scale)
+    public void render(Entity entityIn, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch, float scale)
     {
-        this.setRotationAngles(p_78088_2_, p_78088_3_, p_78088_4_, p_78088_5_, p_78088_6_, scale, entityIn);
+        this.setRotationAngles(limbSwing, limbSwingAmount, ageInTicks, netHeadYaw, headPitch, scale, entityIn);
         this.core.render(scale);
 
-        for (int i = 0; i < this.segments.length; ++i)
+        for (ModelRenderer modelrenderer : this.segments)
         {
-            this.segments[i].render(scale);
+            modelrenderer.render(scale);
         }
     }
 }

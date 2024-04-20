@@ -5,15 +5,15 @@ import net.minecraft.util.WeightedRandom;
 public class EnchantmentData extends WeightedRandom.Item
 {
     /** Enchantment object associated with this EnchantmentData */
-    public final Enchantment enchantmentobj;
+    public final Enchantment enchantment;
 
     /** Enchantment level associated with this EnchantmentData */
     public final int enchantmentLevel;
 
     public EnchantmentData(Enchantment enchantmentObj, int enchLevel)
     {
-        super(enchantmentObj.getWeight());
-        this.enchantmentobj = enchantmentObj;
+        super(enchantmentObj.getRarity().getWeight());
+        this.enchantment = enchantmentObj;
         this.enchantmentLevel = enchLevel;
     }
 }

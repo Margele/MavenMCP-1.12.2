@@ -5,16 +5,16 @@ import net.minecraft.network.handshake.INetHandlerHandshakeServer;
 import net.minecraft.network.handshake.client.C00Handshake;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.NetHandlerLoginServer;
-import net.minecraft.util.IChatComponent;
+import net.minecraft.util.text.ITextComponent;
 
 public class NetHandlerHandshakeMemory implements INetHandlerHandshakeServer
 {
-    private final MinecraftServer mcServer;
+    private final MinecraftServer server;
     private final NetworkManager networkManager;
 
     public NetHandlerHandshakeMemory(MinecraftServer mcServerIn, NetworkManager networkManagerIn)
     {
-        this.mcServer = mcServerIn;
+        this.server = mcServerIn;
         this.networkManager = networkManagerIn;
     }
 
@@ -26,13 +26,13 @@ public class NetHandlerHandshakeMemory implements INetHandlerHandshakeServer
     public void processHandshake(C00Handshake packetIn)
     {
         this.networkManager.setConnectionState(packetIn.getRequestedState());
-        this.networkManager.setNetHandler(new NetHandlerLoginServer(this.mcServer, this.networkManager));
+        this.networkManager.setNetHandler(new NetHandlerLoginServer(this.server, this.networkManager));
     }
 
     /**
      * Invoked when disconnecting, the parameter is a ChatComponent describing the reason for termination
      */
-    public void onDisconnect(IChatComponent reason)
+    public void onDisconnect(ITextComponent reason)
     {
     }
 }

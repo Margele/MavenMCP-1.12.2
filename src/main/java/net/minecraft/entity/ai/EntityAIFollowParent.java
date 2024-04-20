@@ -28,7 +28,7 @@ public class EntityAIFollowParent extends EntityAIBase
         }
         else
         {
-            List<EntityAnimal> list = this.childAnimal.worldObj.<EntityAnimal>getEntitiesWithinAABB(this.childAnimal.getClass(), this.childAnimal.getEntityBoundingBox().expand(8.0D, 4.0D, 8.0D));
+            List<EntityAnimal> list = this.childAnimal.world.<EntityAnimal>getEntitiesWithinAABB(this.childAnimal.getClass(), this.childAnimal.getEntityBoundingBox().grow(8.0D, 4.0D, 8.0D));
             EntityAnimal entityanimal = null;
             double d0 = Double.MAX_VALUE;
 
@@ -36,7 +36,7 @@ public class EntityAIFollowParent extends EntityAIBase
             {
                 if (entityanimal1.getGrowingAge() >= 0)
                 {
-                    double d1 = this.childAnimal.getDistanceSqToEntity(entityanimal1);
+                    double d1 = this.childAnimal.getDistanceSq(entityanimal1);
 
                     if (d1 <= d0)
                     {
@@ -65,7 +65,7 @@ public class EntityAIFollowParent extends EntityAIBase
     /**
      * Returns whether an in-progress EntityAIBase should continue executing
      */
-    public boolean continueExecuting()
+    public boolean shouldContinueExecuting()
     {
         if (this.childAnimal.getGrowingAge() >= 0)
         {
@@ -77,7 +77,7 @@ public class EntityAIFollowParent extends EntityAIBase
         }
         else
         {
-            double d0 = this.childAnimal.getDistanceSqToEntity(this.parentAnimal);
+            double d0 = this.childAnimal.getDistanceSq(this.parentAnimal);
             return d0 >= 9.0D && d0 <= 256.0D;
         }
     }
@@ -91,7 +91,7 @@ public class EntityAIFollowParent extends EntityAIBase
     }
 
     /**
-     * Resets the task
+     * Reset the task's internal state. Called when this task is interrupted by another one
      */
     public void resetTask()
     {
@@ -99,7 +99,7 @@ public class EntityAIFollowParent extends EntityAIBase
     }
 
     /**
-     * Updates the task
+     * Keep ticking a continuous task that has already been started
      */
     public void updateTask()
     {

@@ -1,7 +1,7 @@
 package net.minecraft.item;
 
-import java.util.List;
 import net.minecraft.creativetab.CreativeTabs;
+import net.minecraft.util.NonNullList;
 
 public class ItemCoal extends Item
 {
@@ -9,14 +9,14 @@ public class ItemCoal extends Item
     {
         this.setHasSubtypes(true);
         this.setMaxDamage(0);
-        this.setCreativeTab(CreativeTabs.tabMaterials);
+        this.setCreativeTab(CreativeTabs.MATERIALS);
     }
 
     /**
      * Returns the unlocalized name of this item. This version accepts an ItemStack so different stacks can have
      * different names based on their damage or NBT.
      */
-    public String getUnlocalizedName(ItemStack stack)
+    public String getTranslationKey(ItemStack stack)
     {
         return stack.getMetadata() == 1 ? "item.charcoal" : "item.coal";
     }
@@ -24,9 +24,12 @@ public class ItemCoal extends Item
     /**
      * returns a list of items with the same ID, but different meta (eg: dye returns 16 items)
      */
-    public void getSubItems(Item itemIn, CreativeTabs tab, List<ItemStack> subItems)
+    public void getSubItems(CreativeTabs tab, NonNullList<ItemStack> items)
     {
-        subItems.add(new ItemStack(itemIn, 1, 0));
-        subItems.add(new ItemStack(itemIn, 1, 1));
+        if (this.isInCreativeTab(tab))
+        {
+            items.add(new ItemStack(this, 1, 0));
+            items.add(new ItemStack(this, 1, 1));
+        }
     }
 }

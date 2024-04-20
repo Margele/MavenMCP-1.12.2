@@ -5,6 +5,7 @@ import java.util.List;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.NonNullList;
 import net.minecraft.world.World;
 
 public class RecipeRepairItem implements IRecipe
@@ -20,15 +21,15 @@ public class RecipeRepairItem implements IRecipe
         {
             ItemStack itemstack = inv.getStackInSlot(i);
 
-            if (itemstack != null)
+            if (!itemstack.isEmpty())
             {
                 list.add(itemstack);
 
                 if (list.size() > 1)
                 {
-                    ItemStack itemstack1 = (ItemStack)list.get(0);
+                    ItemStack itemstack1 = list.get(0);
 
-                    if (itemstack.getItem() != itemstack1.getItem() || itemstack1.stackSize != 1 || itemstack.stackSize != 1 || !itemstack1.getItem().isDamageable())
+                    if (itemstack.getItem() != itemstack1.getItem() || itemstack1.getCount() != 1 || itemstack.getCount() != 1 || !itemstack1.getItem().isDamageable())
                     {
                         return false;
                     }
@@ -50,17 +51,17 @@ public class RecipeRepairItem implements IRecipe
         {
             ItemStack itemstack = inv.getStackInSlot(i);
 
-            if (itemstack != null)
+            if (!itemstack.isEmpty())
             {
                 list.add(itemstack);
 
                 if (list.size() > 1)
                 {
-                    ItemStack itemstack1 = (ItemStack)list.get(0);
+                    ItemStack itemstack1 = list.get(0);
 
-                    if (itemstack.getItem() != itemstack1.getItem() || itemstack1.stackSize != 1 || itemstack.stackSize != 1 || !itemstack1.getItem().isDamageable())
+                    if (itemstack.getItem() != itemstack1.getItem() || itemstack1.getCount() != 1 || itemstack.getCount() != 1 || !itemstack1.getItem().isDamageable())
                     {
-                        return null;
+                        return ItemStack.EMPTY;
                     }
                 }
             }
@@ -68,10 +69,10 @@ public class RecipeRepairItem implements IRecipe
 
         if (list.size() == 2)
         {
-            ItemStack itemstack2 = (ItemStack)list.get(0);
-            ItemStack itemstack3 = (ItemStack)list.get(1);
+            ItemStack itemstack2 = list.get(0);
+            ItemStack itemstack3 = list.get(1);
 
-            if (itemstack2.getItem() == itemstack3.getItem() && itemstack2.stackSize == 1 && itemstack3.stackSize == 1 && itemstack2.getItem().isDamageable())
+            if (itemstack2.getItem() == itemstack3.getItem() && itemstack2.getCount() == 1 && itemstack3.getCount() == 1 && itemstack2.getItem().isDamageable())
             {
                 Item item = itemstack2.getItem();
                 int j = item.getMaxDamage() - itemstack2.getItemDamage();
@@ -88,36 +89,49 @@ public class RecipeRepairItem implements IRecipe
             }
         }
 
-        return null;
+        return ItemStack.EMPTY;
     }
 
     /**
-     * Returns the size of the recipe area
+     * Get the result of this recipe, usually for display purposes (e.g. recipe book). If your recipe has more than one
+     * possible result (e.g. it's dynamic and depends on its inputs), then return an empty stack.
      */
-    public int getRecipeSize()
-    {
-        return 4;
-    }
-
     public ItemStack getRecipeOutput()
     {
-        return null;
+        return ItemStack.EMPTY;
     }
 
-    public ItemStack[] getRemainingItems(InventoryCrafting inv)
+    public NonNullList<ItemStack> getRemainingItems(InventoryCrafting inv)
     {
-        ItemStack[] aitemstack = new ItemStack[inv.getSizeInventory()];
+        NonNullList<ItemStack> nonnulllist = NonNullList.<ItemStack>withSize(inv.getSizeInventory(), ItemStack.EMPTY);
 
-        for (int i = 0; i < aitemstack.length; ++i)
+        for (int i = 0; i < nonnulllist.size(); ++i)
         {
             ItemStack itemstack = inv.getStackInSlot(i);
 
-            if (itemstack != null && itemstack.getItem().hasContainerItem())
+            if (itemstack.getItem().hasContainerItem())
             {
-                aitemstack[i] = new ItemStack(itemstack.getItem().getContainerItem());
+                nonnulllist.set(i, new ItemStack(itemstack.getItem().getContainerItem()));
             }
         }
 
-        return aitemstack;
+        return nonnulllist;
+    }
+
+    /**
+     * If true, this recipe does not appear in the recipe book and does not respect recipe unlocking (and the
+     * doLimitedCrafting gamerule)
+     */
+    public boolean isDynamic()
+    {
+        return true;
+    }
+
+    /**
+     * Used to determine if this recipe can fit in a grid of the given width/height
+     */
+    public boolean canFit(int width, int height)
+    {
+        return width * height >= 2;
     }
 }

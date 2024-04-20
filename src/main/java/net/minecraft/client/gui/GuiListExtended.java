@@ -28,14 +28,14 @@ public abstract class GuiListExtended extends GuiSlot
     {
     }
 
-    protected void drawSlot(int entryID, int p_180791_2_, int p_180791_3_, int p_180791_4_, int mouseXIn, int mouseYIn)
+    protected void drawSlot(int slotIndex, int xPos, int yPos, int heightIn, int mouseXIn, int mouseYIn, float partialTicks)
     {
-        this.getListEntry(entryID).drawEntry(entryID, p_180791_2_, p_180791_3_, this.getListWidth(), p_180791_4_, mouseXIn, mouseYIn, this.getSlotIndexFromScreenCoords(mouseXIn, mouseYIn) == entryID);
+        this.getListEntry(slotIndex).drawEntry(slotIndex, xPos, yPos, this.getListWidth(), heightIn, mouseXIn, mouseYIn, this.isMouseYWithinSlotBounds(mouseYIn) && this.getSlotIndexFromScreenCoords(mouseXIn, mouseYIn) == slotIndex, partialTicks);
     }
 
-    protected void func_178040_a(int p_178040_1_, int p_178040_2_, int p_178040_3_)
+    protected void updateItemPos(int entryID, int insideLeft, int yPos, float partialTicks)
     {
-        this.getListEntry(p_178040_1_).setSelected(p_178040_1_, p_178040_2_, p_178040_3_);
+        this.getListEntry(entryID).updatePosition(entryID, insideLeft, yPos, partialTicks);
     }
 
     public boolean mouseClicked(int mouseX, int mouseY, int mouseEvent)
@@ -62,15 +62,15 @@ public abstract class GuiListExtended extends GuiSlot
         return false;
     }
 
-    public boolean mouseReleased(int p_148181_1_, int p_148181_2_, int p_148181_3_)
+    public boolean mouseReleased(int x, int y, int mouseEvent)
     {
         for (int i = 0; i < this.getSize(); ++i)
         {
             int j = this.left + this.width / 2 - this.getListWidth() / 2 + 2;
             int k = this.top + 4 - this.getAmountScrolled() + i * this.slotHeight + this.headerPadding;
-            int l = p_148181_1_ - j;
-            int i1 = p_148181_2_ - k;
-            this.getListEntry(i).mouseReleased(i, p_148181_1_, p_148181_2_, p_148181_3_, l, i1);
+            int l = x - j;
+            int i1 = y - k;
+            this.getListEntry(i).mouseReleased(i, x, y, mouseEvent, l, i1);
         }
 
         this.setEnabled(true);
@@ -84,11 +84,11 @@ public abstract class GuiListExtended extends GuiSlot
 
     public interface IGuiListEntry
     {
-        void setSelected(int p_178011_1_, int p_178011_2_, int p_178011_3_);
+        void updatePosition(int slotIndex, int x, int y, float partialTicks);
 
-        void drawEntry(int slotIndex, int x, int y, int listWidth, int slotHeight, int mouseX, int mouseY, boolean isSelected);
+        void drawEntry(int slotIndex, int x, int y, int listWidth, int slotHeight, int mouseX, int mouseY, boolean isSelected, float partialTicks);
 
-        boolean mousePressed(int slotIndex, int p_148278_2_, int p_148278_3_, int p_148278_4_, int p_148278_5_, int p_148278_6_);
+        boolean mousePressed(int slotIndex, int mouseX, int mouseY, int mouseEvent, int relativeX, int relativeY);
 
         void mouseReleased(int slotIndex, int x, int y, int mouseEvent, int relativeX, int relativeY);
     }

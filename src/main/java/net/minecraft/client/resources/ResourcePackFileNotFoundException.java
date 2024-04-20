@@ -5,8 +5,8 @@ import java.io.FileNotFoundException;
 
 public class ResourcePackFileNotFoundException extends FileNotFoundException
 {
-    public ResourcePackFileNotFoundException(File resourcePack, String p_i1294_2_)
+    public ResourcePackFileNotFoundException(File resourcePack, String fileName)
     {
-        super(String.format("\'%s\' in ResourcePack \'%s\'", new Object[] {p_i1294_2_, resourcePack}));
+        super(String.format("'%s' in ResourcePack '%s'", fileName, resourcePack));
     }
 }

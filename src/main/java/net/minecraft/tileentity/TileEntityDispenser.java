@@ -5,16 +5,18 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Container;
 import net.minecraft.inventory.ContainerDispenser;
-import net.minecraft.inventory.IInventory;
+import net.minecraft.inventory.ItemStackHelper;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
+import net.minecraft.util.NonNullList;
+import net.minecraft.util.datafix.DataFixer;
+import net.minecraft.util.datafix.FixTypes;
+import net.minecraft.util.datafix.walkers.ItemStackDataLists;
 
-public class TileEntityDispenser extends TileEntityLockable implements IInventory
+public class TileEntityDispenser extends TileEntityLockableLoot
 {
     private static final Random RNG = new Random();
-    private ItemStack[] stacks = new ItemStack[9];
-    protected String customName;
+    private NonNullList<ItemStack> stacks = NonNullList.<ItemStack>withSize(9, ItemStack.EMPTY);
 
     /**
      * Returns the number of slots in the inventory.
@@ -24,72 +26,28 @@ public class TileEntityDispenser extends TileEntityLockable implements IInventor
         return 9;
     }
 
-    /**
-     * Returns the stack in the given slot.
-     */
-    public ItemStack getStackInSlot(int index)
+    public boolean isEmpty()
     {
-        return this.stacks[index];
-    }
-
-    /**
-     * Removes up to a specified number of items from an inventory slot and returns them in a new stack.
-     */
-    public ItemStack decrStackSize(int index, int count)
-    {
-        if (this.stacks[index] != null)
+        for (ItemStack itemstack : this.stacks)
         {
-            if (this.stacks[index].stackSize <= count)
+            if (!itemstack.isEmpty())
             {
-                ItemStack itemstack1 = this.stacks[index];
-                this.stacks[index] = null;
-                this.markDirty();
-                return itemstack1;
-            }
-            else
-            {
-                ItemStack itemstack = this.stacks[index].splitStack(count);
-
-                if (this.stacks[index].stackSize == 0)
-                {
-                    this.stacks[index] = null;
-                }
-
-                this.markDirty();
-                return itemstack;
+                return false;
             }
         }
-        else
-        {
-            return null;
-        }
-    }
 
-    /**
-     * Removes a stack from the given slot and returns it.
-     */
-    public ItemStack removeStackFromSlot(int index)
-    {
-        if (this.stacks[index] != null)
-        {
-            ItemStack itemstack = this.stacks[index];
-            this.stacks[index] = null;
-            return itemstack;
-        }
-        else
-        {
-            return null;
-        }
+        return true;
     }
 
     public int getDispenseSlot()
     {
+        this.fillWithLoot((EntityPlayer)null);
         int i = -1;
         int j = 1;
 
-        for (int k = 0; k < this.stacks.length; ++k)
+        for (int k = 0; k < this.stacks.size(); ++k)
         {
-            if (this.stacks[k] != null && RNG.nextInt(j++) == 0)
+            if (!((ItemStack)this.stacks.get(k)).isEmpty() && RNG.nextInt(j++) == 0)
             {
                 i = k;
             }
@@ -99,29 +57,14 @@ public class TileEntityDispenser extends TileEntityLockable implements IInventor
     }
 
     /**
-     * Sets the given item stack to the specified slot in the inventory (can be crafting or armor sections).
-     */
-    public void setInventorySlotContents(int index, ItemStack stack)
-    {
-        this.stacks[index] = stack;
-
-        if (stack != null && stack.stackSize > this.getInventoryStackLimit())
-        {
-            stack.stackSize = this.getInventoryStackLimit();
-        }
-
-        this.markDirty();
-    }
-
-    /**
      * Add the given ItemStack to this Dispenser. Return the Slot the Item was placed in or -1 if no free slot is
      * available.
      */
     public int addItemStack(ItemStack stack)
     {
-        for (int i = 0; i < this.stacks.length; ++i)
+        for (int i = 0; i < this.stacks.size(); ++i)
         {
-            if (this.stacks[i] == null || this.stacks[i].getItem() == null)
+            if (((ItemStack)this.stacks.get(i)).isEmpty())
             {
                 this.setInventorySlotContents(i, stack);
                 return i;
@@ -132,41 +75,58 @@ public class TileEntityDispenser extends TileEntityLockable implements IInventor
     }
 
     /**
-     * Get the name of this object. For players this returns their username
+     * Gets the name of this thing. This method has slightly different behavior depending on the interface (for <a
+     * href="https://github.com/ModCoderPack/MCPBot-Issues/issues/14">technical reasons</a> the same method is used for
+     * both IWorldNameable and ICommandSender):
+     *  
+     * <dl>
+     * <dt>{@link net.minecraft.util.INameable#getName() INameable.getName()}</dt>
+     * <dd>Returns the name of this inventory. If this {@linkplain net.minecraft.inventory#hasCustomName() has a custom
+     * name} then this <em>should</em> be a direct string; otherwise it <em>should</em> be a valid translation
+     * string.</dd>
+     * <dd>However, note that <strong>the translation string may be invalid</strong>, as is the case for {@link
+     * net.minecraft.tileentity.TileEntityBanner TileEntityBanner} (always returns nonexistent translation code
+     * <code>banner</code> without a custom name), {@link net.minecraft.block.BlockAnvil.Anvil BlockAnvil$Anvil} (always
+     * returns <code>anvil</code>), {@link net.minecraft.block.BlockWorkbench.InterfaceCraftingTable
+     * BlockWorkbench$InterfaceCraftingTable} (always returns <code>crafting_table</code>), {@link
+     * net.minecraft.inventory.InventoryCraftResult InventoryCraftResult} (always returns <code>Result</code>) and the
+     * {@link net.minecraft.entity.item.EntityMinecart EntityMinecart} family (uses the entity definition). This is not
+     * an exaustive list.</dd>
+     * <dd>In general, this method should be safe to use on tile entities that implement IInventory.</dd>
+     * <dt>{@link net.minecraft.command.ICommandSender#getName() ICommandSender.getName()} and {@link
+     * net.minecraft.entity.Entity#getName() Entity.getName()}</dt>
+     * <dd>Returns a valid, displayable name (which may be localized). For most entities, this is the translated version
+     * of its translation string (obtained via {@link net.minecraft.entity.EntityList#getEntityString
+     * EntityList.getEntityString}).</dd>
+     * <dd>If this entity has a custom name set, this will return that name.</dd>
+     * <dd>For some entities, this will attempt to translate a nonexistent translation string; see <a
+     * href="https://bugs.mojang.com/browse/MC-68446">MC-68446</a>. For {@linkplain
+     * net.minecraft.entity.player.EntityPlayer#getName() players} this returns the player's name. For {@linkplain
+     * net.minecraft.entity.passive.EntityOcelot ocelots} this may return the translation of
+     * <code>entity.Cat.name</code> if it is tamed. For {@linkplain net.minecraft.entity.item.EntityItem#getName() item
+     * entities}, this will attempt to return the name of the item in that item entity. In all cases other than players,
+     * the custom name will overrule this.</dd>
+     * <dd>For non-entity command senders, this will return some arbitrary name, such as "Rcon" or "Server".</dd>
+     * </dl>
      */
     public String getName()
     {
         return this.hasCustomName() ? this.customName : "container.dispenser";
     }
 
-    public void setCustomName(String customName)
+    public static void registerFixes(DataFixer fixer)
     {
-        this.customName = customName;
-    }
-
-    /**
-     * Returns true if this thing is named
-     */
-    public boolean hasCustomName()
-    {
-        return this.customName != null;
+        fixer.registerWalker(FixTypes.BLOCK_ENTITY, new ItemStackDataLists(TileEntityDispenser.class, new String[] {"Items"}));
     }
 
     public void readFromNBT(NBTTagCompound compound)
     {
         super.readFromNBT(compound);
-        NBTTagList nbttaglist = compound.getTagList("Items", 10);
-        this.stacks = new ItemStack[this.getSizeInventory()];
+        this.stacks = NonNullList.<ItemStack>withSize(this.getSizeInventory(), ItemStack.EMPTY);
 
-        for (int i = 0; i < nbttaglist.tagCount(); ++i)
+        if (!this.checkLootAndRead(compound))
         {
-            NBTTagCompound nbttagcompound = nbttaglist.getCompoundTagAt(i);
-            int j = nbttagcompound.getByte("Slot") & 255;
-
-            if (j >= 0 && j < this.stacks.length)
-            {
-                this.stacks[j] = ItemStack.loadItemStackFromNBT(nbttagcompound);
-            }
+            ItemStackHelper.loadAllItems(compound, this.stacks);
         }
 
         if (compound.hasKey("CustomName", 8))
@@ -175,28 +135,21 @@ public class TileEntityDispenser extends TileEntityLockable implements IInventor
         }
     }
 
-    public void writeToNBT(NBTTagCompound compound)
+    public NBTTagCompound writeToNBT(NBTTagCompound compound)
     {
         super.writeToNBT(compound);
-        NBTTagList nbttaglist = new NBTTagList();
 
-        for (int i = 0; i < this.stacks.length; ++i)
+        if (!this.checkLootAndWrite(compound))
         {
-            if (this.stacks[i] != null)
-            {
-                NBTTagCompound nbttagcompound = new NBTTagCompound();
-                nbttagcompound.setByte("Slot", (byte)i);
-                this.stacks[i].writeToNBT(nbttagcompound);
-                nbttaglist.appendTag(nbttagcompound);
-            }
+            ItemStackHelper.saveAllItems(compound, this.stacks);
         }
-
-        compound.setTag("Items", nbttaglist);
 
         if (this.hasCustomName())
         {
             compound.setString("CustomName", this.customName);
         }
+
+        return compound;
     }
 
     /**
@@ -207,30 +160,6 @@ public class TileEntityDispenser extends TileEntityLockable implements IInventor
         return 64;
     }
 
-    /**
-     * Do not make give this method the name canInteractWith because it clashes with Container
-     */
-    public boolean isUseableByPlayer(EntityPlayer player)
-    {
-        return this.worldObj.getTileEntity(this.pos) != this ? false : player.getDistanceSq((double)this.pos.getX() + 0.5D, (double)this.pos.getY() + 0.5D, (double)this.pos.getZ() + 0.5D) <= 64.0D;
-    }
-
-    public void openInventory(EntityPlayer player)
-    {
-    }
-
-    public void closeInventory(EntityPlayer player)
-    {
-    }
-
-    /**
-     * Returns true if automation is allowed to insert the given stack (ignoring stack size) into the given slot.
-     */
-    public boolean isItemValidForSlot(int index, ItemStack stack)
-    {
-        return true;
-    }
-
     public String getGuiID()
     {
         return "minecraft:dispenser";
@@ -238,28 +167,12 @@ public class TileEntityDispenser extends TileEntityLockable implements IInventor
 
     public Container createContainer(InventoryPlayer playerInventory, EntityPlayer playerIn)
     {
+        this.fillWithLoot(playerIn);
         return new ContainerDispenser(playerInventory, this);
     }
 
-    public int getField(int id)
+    protected NonNullList<ItemStack> getItems()
     {
-        return 0;
-    }
-
-    public void setField(int id, int value)
-    {
-    }
-
-    public int getFieldCount()
-    {
-        return 0;
-    }
-
-    public void clear()
-    {
-        for (int i = 0; i < this.stacks.length; ++i)
-        {
-            this.stacks[i] = null;
-        }
+        return this.stacks;
     }
 }

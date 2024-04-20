@@ -5,12 +5,12 @@ import net.minecraft.entity.player.EntityPlayer;
 
 public class EntityAILookAtTradePlayer extends EntityAIWatchClosest
 {
-    private final EntityVillager theMerchant;
+    private final EntityVillager villager;
 
-    public EntityAILookAtTradePlayer(EntityVillager theMerchantIn)
+    public EntityAILookAtTradePlayer(EntityVillager villagerIn)
     {
-        super(theMerchantIn, EntityPlayer.class, 8.0F);
-        this.theMerchant = theMerchantIn;
+        super(villagerIn, EntityPlayer.class, 8.0F);
+        this.villager = villagerIn;
     }
 
     /**
@@ -18,9 +18,9 @@ public class EntityAILookAtTradePlayer extends EntityAIWatchClosest
      */
     public boolean shouldExecute()
     {
-        if (this.theMerchant.isTrading())
+        if (this.villager.isTrading())
         {
-            this.closestEntity = this.theMerchant.getCustomer();
+            this.closestEntity = this.villager.getCustomer();
             return true;
         }
         else

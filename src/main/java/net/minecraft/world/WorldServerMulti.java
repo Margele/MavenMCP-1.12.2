@@ -10,7 +10,7 @@ import net.minecraft.world.storage.ISaveHandler;
 
 public class WorldServerMulti extends WorldServer
 {
-    private WorldServer delegate;
+    private final WorldServer delegate;
 
     public WorldServerMulti(MinecraftServer server, ISaveHandler saveHandlerIn, int dimensionId, WorldServer delegate, Profiler profilerIn)
     {
@@ -60,20 +60,31 @@ public class WorldServerMulti extends WorldServer
     {
         this.mapStorage = this.delegate.getMapStorage();
         this.worldScoreboard = this.delegate.getScoreboard();
+        this.lootTable = this.delegate.getLootTableManager();
+        this.advancementManager = this.delegate.getAdvancementManager();
         String s = VillageCollection.fileNameForProvider(this.provider);
-        VillageCollection villagecollection = (VillageCollection)this.mapStorage.loadData(VillageCollection.class, s);
+        VillageCollection villagecollection = (VillageCollection)this.mapStorage.getOrLoadData(VillageCollection.class, s);
 
         if (villagecollection == null)
         {
-            this.villageCollectionObj = new VillageCollection(this);
-            this.mapStorage.setData(s, this.villageCollectionObj);
+            this.villageCollection = new VillageCollection(this);
+            this.mapStorage.setData(s, this.villageCollection);
         }
         else
         {
-            this.villageCollectionObj = villagecollection;
-            this.villageCollectionObj.setWorldsForAll(this);
+            this.villageCollection = villagecollection;
+            this.villageCollection.setWorldsForAll(this);
         }
 
         return this;
+    }
+
+    /**
+     * Called during saving of a world to give children worlds a chance to save additional data. Only used to save
+     * WorldProviderEnd's data in Vanilla.
+     */
+    public void saveAdditionalData()
+    {
+        this.provider.onWorldSave();
     }
 }

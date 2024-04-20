@@ -3,18 +3,19 @@ package net.minecraft.item;
 import com.google.common.collect.Multimap;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
-import net.minecraft.util.BlockPos;
+import net.minecraft.inventory.EntityEquipmentSlot;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 public class ItemSword extends Item
 {
-    private float attackDamage;
+    private final float attackDamage;
     private final Item.ToolMaterial material;
 
     public ItemSword(Item.ToolMaterial material)
@@ -22,28 +23,30 @@ public class ItemSword extends Item
         this.material = material;
         this.maxStackSize = 1;
         this.setMaxDamage(material.getMaxUses());
-        this.setCreativeTab(CreativeTabs.tabCombat);
-        this.attackDamage = 4.0F + material.getDamageVsEntity();
+        this.setCreativeTab(CreativeTabs.COMBAT);
+        this.attackDamage = 3.0F + material.getAttackDamage();
     }
 
     /**
      * Returns the amount of damage this item will deal. One heart of damage is equal to 2 damage points.
      */
-    public float getDamageVsEntity()
+    public float getAttackDamage()
     {
-        return this.material.getDamageVsEntity();
+        return this.material.getAttackDamage();
     }
 
-    public float getStrVsBlock(ItemStack stack, Block state)
+    public float getDestroySpeed(ItemStack stack, IBlockState state)
     {
-        if (state == Blocks.web)
+        Block block = state.getBlock();
+
+        if (block == Blocks.WEB)
         {
             return 15.0F;
         }
         else
         {
             Material material = state.getMaterial();
-            return material != Material.plants && material != Material.vine && material != Material.coral && material != Material.leaves && material != Material.gourd ? 1.0F : 1.5F;
+            return material != Material.PLANTS && material != Material.VINE && material != Material.CORAL && material != Material.LEAVES && material != Material.GOURD ? 1.0F : 1.5F;
         }
     }
 
@@ -60,11 +63,11 @@ public class ItemSword extends Item
     /**
      * Called when a Block is destroyed using this Item. Return true to trigger the "Use Item" statistic.
      */
-    public boolean onBlockDestroyed(ItemStack stack, World worldIn, Block blockIn, BlockPos pos, EntityLivingBase playerIn)
+    public boolean onBlockDestroyed(ItemStack stack, World worldIn, IBlockState state, BlockPos pos, EntityLivingBase entityLiving)
     {
-        if ((double)blockIn.getBlockHardness(worldIn, pos) != 0.0D)
+        if ((double)state.getBlockHardness(worldIn, pos) != 0.0D)
         {
-            stack.damageItem(2, playerIn);
+            stack.damageItem(2, entityLiving);
         }
 
         return true;
@@ -79,36 +82,11 @@ public class ItemSword extends Item
     }
 
     /**
-     * returns the action that specifies what animation to play when the items is being used
-     */
-    public EnumAction getItemUseAction(ItemStack stack)
-    {
-        return EnumAction.BLOCK;
-    }
-
-    /**
-     * How long it takes to use or consume an item
-     */
-    public int getMaxItemUseDuration(ItemStack stack)
-    {
-        return 72000;
-    }
-
-    /**
-     * Called whenever this item is equipped and the right mouse button is pressed. Args: itemStack, world, entityPlayer
-     */
-    public ItemStack onItemRightClick(ItemStack itemStackIn, World worldIn, EntityPlayer playerIn)
-    {
-        playerIn.setItemInUse(itemStackIn, this.getMaxItemUseDuration(itemStackIn));
-        return itemStackIn;
-    }
-
-    /**
      * Check whether this Item can harvest the given Block
      */
-    public boolean canHarvestBlock(Block blockIn)
+    public boolean canHarvestBlock(IBlockState blockIn)
     {
-        return blockIn == Blocks.web;
+        return blockIn.getBlock() == Blocks.WEB;
     }
 
     /**
@@ -129,16 +107,25 @@ public class ItemSword extends Item
 
     /**
      * Return whether this item is repairable in an anvil.
+     *  
+     * @param toRepair the {@code ItemStack} being repaired
+     * @param repair the {@code ItemStack} being used to perform the repair
      */
     public boolean getIsRepairable(ItemStack toRepair, ItemStack repair)
     {
         return this.material.getRepairItem() == repair.getItem() ? true : super.getIsRepairable(toRepair, repair);
     }
 
-    public Multimap<String, AttributeModifier> getItemAttributeModifiers()
+    public Multimap<String, AttributeModifier> getItemAttributeModifiers(EntityEquipmentSlot equipmentSlot)
     {
-        Multimap<String, AttributeModifier> multimap = super.getItemAttributeModifiers();
-        multimap.put(SharedMonsterAttributes.attackDamage.getAttributeUnlocalizedName(), new AttributeModifier(itemModifierUUID, "Weapon modifier", (double)this.attackDamage, 0));
+        Multimap<String, AttributeModifier> multimap = super.getItemAttributeModifiers(equipmentSlot);
+
+        if (equipmentSlot == EntityEquipmentSlot.MAINHAND)
+        {
+            multimap.put(SharedMonsterAttributes.ATTACK_DAMAGE.getName(), new AttributeModifier(ATTACK_DAMAGE_MODIFIER, "Weapon modifier", (double)this.attackDamage, 0));
+            multimap.put(SharedMonsterAttributes.ATTACK_SPEED.getName(), new AttributeModifier(ATTACK_SPEED_MODIFIER, "Weapon modifier", -2.4000000953674316D, 0));
+        }
+
         return multimap;
     }
 }

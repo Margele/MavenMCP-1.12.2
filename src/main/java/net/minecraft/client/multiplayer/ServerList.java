@@ -12,7 +12,7 @@ import org.apache.logging.log4j.Logger;
 
 public class ServerList
 {
-    private static final Logger logger = LogManager.getLogger();
+    private static final Logger LOGGER = LogManager.getLogger();
 
     /** The Minecraft instance. */
     private final Minecraft mc;
@@ -33,7 +33,7 @@ public class ServerList
         try
         {
             this.servers.clear();
-            NBTTagCompound nbttagcompound = CompressedStreamTools.read(new File(this.mc.mcDataDir, "servers.dat"));
+            NBTTagCompound nbttagcompound = CompressedStreamTools.read(new File(this.mc.gameDir, "servers.dat"));
 
             if (nbttagcompound == null)
             {
@@ -49,7 +49,7 @@ public class ServerList
         }
         catch (Exception exception)
         {
-            logger.error((String)"Couldn\'t load server list", (Throwable)exception);
+            LOGGER.error("Couldn't load server list", (Throwable)exception);
         }
     }
 
@@ -70,11 +70,11 @@ public class ServerList
 
             NBTTagCompound nbttagcompound = new NBTTagCompound();
             nbttagcompound.setTag("servers", nbttaglist);
-            CompressedStreamTools.safeWrite(nbttagcompound, new File(this.mc.mcDataDir, "servers.dat"));
+            CompressedStreamTools.safeWrite(nbttagcompound, new File(this.mc.gameDir, "servers.dat"));
         }
         catch (Exception exception)
         {
-            logger.error((String)"Couldn\'t save server list", (Throwable)exception);
+            LOGGER.error("Couldn't save server list", (Throwable)exception);
         }
     }
 
@@ -83,7 +83,7 @@ public class ServerList
      */
     public ServerData getServerData(int index)
     {
-        return (ServerData)this.servers.get(index);
+        return this.servers.get(index);
     }
 
     /**
@@ -113,20 +113,20 @@ public class ServerList
     /**
      * Takes two list indexes, and swaps their order around.
      */
-    public void swapServers(int p_78857_1_, int p_78857_2_)
+    public void swapServers(int pos1, int pos2)
     {
-        ServerData serverdata = this.getServerData(p_78857_1_);
-        this.servers.set(p_78857_1_, this.getServerData(p_78857_2_));
-        this.servers.set(p_78857_2_, serverdata);
+        ServerData serverdata = this.getServerData(pos1);
+        this.servers.set(pos1, this.getServerData(pos2));
+        this.servers.set(pos2, serverdata);
         this.saveServerList();
     }
 
-    public void func_147413_a(int index, ServerData server)
+    public void set(int index, ServerData server)
     {
         this.servers.set(index, server);
     }
 
-    public static void func_147414_b(ServerData p_147414_0_)
+    public static void saveSingleServer(ServerData server)
     {
         ServerList serverlist = new ServerList(Minecraft.getMinecraft());
         serverlist.loadServerList();
@@ -135,9 +135,9 @@ public class ServerList
         {
             ServerData serverdata = serverlist.getServerData(i);
 
-            if (serverdata.serverName.equals(p_147414_0_.serverName) && serverdata.serverIP.equals(p_147414_0_.serverIP))
+            if (serverdata.serverName.equals(server.serverName) && serverdata.serverIP.equals(server.serverIP))
             {
-                serverlist.func_147413_a(i, p_147414_0_);
+                serverlist.set(i, server);
                 break;
             }
         }

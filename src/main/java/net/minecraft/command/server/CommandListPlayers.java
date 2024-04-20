@@ -5,15 +5,15 @@ import net.minecraft.command.CommandException;
 import net.minecraft.command.CommandResultStats;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.util.ChatComponentText;
-import net.minecraft.util.ChatComponentTranslation;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextComponentTranslation;
 
 public class CommandListPlayers extends CommandBase
 {
     /**
      * Gets the name of the command
      */
-    public String getCommandName()
+    public String getName()
     {
         return "list";
     }
@@ -29,19 +29,19 @@ public class CommandListPlayers extends CommandBase
     /**
      * Gets the usage string for the command.
      */
-    public String getCommandUsage(ICommandSender sender)
+    public String getUsage(ICommandSender sender)
     {
         return "commands.players.usage";
     }
 
     /**
-     * Callback when the command is invoked
+     * Callback for when the command is executed
      */
-    public void processCommand(ICommandSender sender, String[] args) throws CommandException
+    public void execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException
     {
-        int i = MinecraftServer.getServer().getCurrentPlayerCount();
-        sender.addChatMessage(new ChatComponentTranslation("commands.players.list", new Object[] {Integer.valueOf(i), Integer.valueOf(MinecraftServer.getServer().getMaxPlayers())}));
-        sender.addChatMessage(new ChatComponentText(MinecraftServer.getServer().getConfigurationManager().func_181058_b(args.length > 0 && "uuids".equalsIgnoreCase(args[0]))));
+        int i = server.getCurrentPlayerCount();
+        sender.sendMessage(new TextComponentTranslation("commands.players.list", new Object[] {i, server.getMaxPlayers()}));
+        sender.sendMessage(new TextComponentString(server.getPlayerList().getFormattedListOfPlayers(args.length > 0 && "uuids".equalsIgnoreCase(args[0]))));
         sender.setCommandStat(CommandResultStats.Type.QUERY_RESULT, i);
     }
 }

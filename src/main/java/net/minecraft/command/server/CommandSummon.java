@@ -1,6 +1,8 @@
 package net.minecraft.command.server;
 
+import java.util.Collections;
 import java.util.List;
+import javax.annotation.Nullable;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
@@ -13,17 +15,19 @@ import net.minecraft.entity.effect.EntityLightningBolt;
 import net.minecraft.nbt.JsonToNBT;
 import net.minecraft.nbt.NBTException;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.util.BlockPos;
-import net.minecraft.util.IChatComponent;
-import net.minecraft.util.Vec3;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
+import net.minecraft.world.chunk.storage.AnvilChunkLoader;
 
 public class CommandSummon extends CommandBase
 {
     /**
      * Gets the name of the command
      */
-    public String getCommandName()
+    public String getName()
     {
         return "summon";
     }
@@ -39,15 +43,15 @@ public class CommandSummon extends CommandBase
     /**
      * Gets the usage string for the command.
      */
-    public String getCommandUsage(ICommandSender sender)
+    public String getUsage(ICommandSender sender)
     {
         return "commands.summon.usage";
     }
 
     /**
-     * Callback when the command is invoked
+     * Callback for when the command is executed
      */
-    public void processCommand(ICommandSender sender, String[] args) throws CommandException
+    public void execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException
     {
         if (args.length < 1)
         {
@@ -57,10 +61,10 @@ public class CommandSummon extends CommandBase
         {
             String s = args[0];
             BlockPos blockpos = sender.getPosition();
-            Vec3 vec3 = sender.getPositionVector();
-            double d0 = vec3.xCoord;
-            double d1 = vec3.yCoord;
-            double d2 = vec3.zCoord;
+            Vec3d vec3d = sender.getPositionVector();
+            double d0 = vec3d.x;
+            double d1 = vec3d.y;
+            double d2 = vec3d.z;
 
             if (args.length >= 4)
             {
@@ -76,10 +80,10 @@ public class CommandSummon extends CommandBase
             {
                 throw new CommandException("commands.summon.outOfWorld", new Object[0]);
             }
-            else if ("LightningBolt".equals(s))
+            else if (EntityList.LIGHTNING_BOLT.equals(new ResourceLocation(s)))
             {
-                world.addWeatherEffect(new EntityLightningBolt(world, d0, d1, d2));
-                notifyOperators(sender, this, "commands.summon.success", new Object[0]);
+                world.addWeatherEffect(new EntityLightningBolt(world, d0, d1, d2, false));
+                notifyCommandListener(sender, this, "commands.summon.success", new Object[0]);
             }
             else
             {
@@ -88,11 +92,11 @@ public class CommandSummon extends CommandBase
 
                 if (args.length >= 5)
                 {
-                    IChatComponent ichatcomponent = getChatComponentFromNthArg(sender, args, 4);
+                    String s1 = buildString(args, 4);
 
                     try
                     {
-                        nbttagcompound = JsonToNBT.getTagFromJson(ichatcomponent.getUnformattedText());
+                        nbttagcompound = JsonToNBT.getTagFromJson(s1);
                         flag = true;
                     }
                     catch (NBTException nbtexception)
@@ -102,55 +106,36 @@ public class CommandSummon extends CommandBase
                 }
 
                 nbttagcompound.setString("id", s);
-                Entity entity2;
+                Entity entity = AnvilChunkLoader.readWorldEntityPos(nbttagcompound, world, d0, d1, d2, true);
 
-                try
-                {
-                    entity2 = EntityList.createEntityFromNBT(nbttagcompound, world);
-                }
-                catch (RuntimeException var19)
-                {
-                    throw new CommandException("commands.summon.failed", new Object[0]);
-                }
-
-                if (entity2 == null)
+                if (entity == null)
                 {
                     throw new CommandException("commands.summon.failed", new Object[0]);
                 }
                 else
                 {
-                    entity2.setLocationAndAngles(d0, d1, d2, entity2.rotationYaw, entity2.rotationPitch);
+                    entity.setLocationAndAngles(d0, d1, d2, entity.rotationYaw, entity.rotationPitch);
 
-                    if (!flag && entity2 instanceof EntityLiving)
+                    if (!flag && entity instanceof EntityLiving)
                     {
-                        ((EntityLiving)entity2).onInitialSpawn(world.getDifficultyForLocation(new BlockPos(entity2)), (IEntityLivingData)null);
+                        ((EntityLiving)entity).onInitialSpawn(world.getDifficultyForLocation(new BlockPos(entity)), (IEntityLivingData)null);
                     }
 
-                    world.spawnEntityInWorld(entity2);
-                    Entity entity = entity2;
-
-                    for (NBTTagCompound nbttagcompound1 = nbttagcompound; entity != null && nbttagcompound1.hasKey("Riding", 10); nbttagcompound1 = nbttagcompound1.getCompoundTag("Riding"))
-                    {
-                        Entity entity1 = EntityList.createEntityFromNBT(nbttagcompound1.getCompoundTag("Riding"), world);
-
-                        if (entity1 != null)
-                        {
-                            entity1.setLocationAndAngles(d0, d1, d2, entity1.rotationYaw, entity1.rotationPitch);
-                            world.spawnEntityInWorld(entity1);
-                            entity.mountEntity(entity1);
-                        }
-
-                        entity = entity1;
-                    }
-
-                    notifyOperators(sender, this, "commands.summon.success", new Object[0]);
+                    notifyCommandListener(sender, this, "commands.summon.success", new Object[0]);
                 }
             }
         }
     }
 
-    public List<String> addTabCompletionOptions(ICommandSender sender, String[] args, BlockPos pos)
+    public List<String> getTabCompletions(MinecraftServer server, ICommandSender sender, String[] args, @Nullable BlockPos targetPos)
     {
-        return args.length == 1 ? getListOfStringsMatchingLastWord(args, EntityList.getEntityNameList()) : (args.length > 1 && args.length <= 4 ? func_175771_a(args, 1, pos) : null);
+        if (args.length == 1)
+        {
+            return getListOfStringsMatchingLastWord(args, EntityList.getEntityNameList());
+        }
+        else
+        {
+            return args.length > 1 && args.length <= 4 ? getTabCompletionCoordinate(args, 1, targetPos) : Collections.emptyList();
+        }
     }
 }

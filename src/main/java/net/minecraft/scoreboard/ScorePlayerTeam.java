@@ -3,43 +3,51 @@ package net.minecraft.scoreboard;
 import com.google.common.collect.Sets;
 import java.util.Collection;
 import java.util.Set;
-import net.minecraft.util.EnumChatFormatting;
+import javax.annotation.Nullable;
+import net.minecraft.util.text.TextFormatting;
 
 public class ScorePlayerTeam extends Team
 {
-    private final Scoreboard theScoreboard;
-    private final String registeredName;
+    private final Scoreboard scoreboard;
+    private final String name;
     private final Set<String> membershipSet = Sets.<String>newHashSet();
-    private String teamNameSPT;
-    private String namePrefixSPT = "";
-    private String colorSuffix = "";
+    private String displayName;
+    private String prefix = "";
+    private String suffix = "";
     private boolean allowFriendlyFire = true;
     private boolean canSeeFriendlyInvisibles = true;
     private Team.EnumVisible nameTagVisibility = Team.EnumVisible.ALWAYS;
     private Team.EnumVisible deathMessageVisibility = Team.EnumVisible.ALWAYS;
-    private EnumChatFormatting chatFormat = EnumChatFormatting.RESET;
+    private TextFormatting color = TextFormatting.RESET;
+    private Team.CollisionRule collisionRule = Team.CollisionRule.ALWAYS;
 
-    public ScorePlayerTeam(Scoreboard theScoreboardIn, String name)
+    public ScorePlayerTeam(Scoreboard scoreboardIn, String name)
     {
-        this.theScoreboard = theScoreboardIn;
-        this.registeredName = name;
-        this.teamNameSPT = name;
+        this.scoreboard = scoreboardIn;
+        this.name = name;
+        this.displayName = name;
     }
 
     /**
      * Retrieve the name by which this team is registered in the scoreboard
      */
-    public String getRegisteredName()
+    public String getName()
     {
-        return this.registeredName;
+        return this.name;
     }
 
-    public String getTeamName()
+    /**
+     * Gets the display name for this team.
+     */
+    public String getDisplayName()
     {
-        return this.teamNameSPT;
+        return this.displayName;
     }
 
-    public void setTeamName(String name)
+    /**
+     * Sets the display name for this team.
+     */
+    public void setDisplayName(String name)
     {
         if (name == null)
         {
@@ -47,8 +55,8 @@ public class ScorePlayerTeam extends Team
         }
         else
         {
-            this.teamNameSPT = name;
-            this.theScoreboard.sendTeamUpdate(this);
+            this.displayName = name;
+            this.scoreboard.broadcastTeamInfoUpdate(this);
         }
     }
 
@@ -58,14 +66,21 @@ public class ScorePlayerTeam extends Team
     }
 
     /**
-     * Returns the color prefix for the player's team name
+     * Gets the prefix applied before the names of members of this team. Usually a single format code, but may be any
+     * text.
+     *  
+     * Note that the prefix is also used to determine the color for the "glowing" effect - see {@link
+     * net.minecraft.client.renderer.entity.Renderer#getTeamColor Renderer.getTeamColor}.
      */
-    public String getColorPrefix()
+    public String getPrefix()
     {
-        return this.namePrefixSPT;
+        return this.prefix;
     }
 
-    public void setNamePrefix(String prefix)
+    /**
+     * Sets the prefix applied before the names of members of this team.
+     */
+    public void setPrefix(String prefix)
     {
         if (prefix == null)
         {
@@ -73,83 +88,134 @@ public class ScorePlayerTeam extends Team
         }
         else
         {
-            this.namePrefixSPT = prefix;
-            this.theScoreboard.sendTeamUpdate(this);
+            this.prefix = prefix;
+            this.scoreboard.broadcastTeamInfoUpdate(this);
         }
     }
 
     /**
-     * Returns the color suffix for the player's team name
+     * Gets the suffix applied after the names of members of this team. Usually a single reset format code, but may be
+     * any text.
      */
-    public String getColorSuffix()
+    public String getSuffix()
     {
-        return this.colorSuffix;
-    }
-
-    public void setNameSuffix(String suffix)
-    {
-        this.colorSuffix = suffix;
-        this.theScoreboard.sendTeamUpdate(this);
-    }
-
-    public String formatString(String input)
-    {
-        return this.getColorPrefix() + input + this.getColorSuffix();
+        return this.suffix;
     }
 
     /**
-     * Returns the player name including the color prefixes and suffixes
+     * Sets the suffix applied after the names of members of this team.
      */
-    public static String formatPlayerName(Team p_96667_0_, String p_96667_1_)
+    public void setSuffix(String suffix)
     {
-        return p_96667_0_ == null ? p_96667_1_ : p_96667_0_.formatString(p_96667_1_);
+        this.suffix = suffix;
+        this.scoreboard.broadcastTeamInfoUpdate(this);
     }
 
+    /**
+     * Formats the given text as a member of this team, using the prefix and suffix.
+     */
+    public String formatString(String input)
+    {
+        return this.getPrefix() + input + this.getSuffix();
+    }
+
+    /**
+     * Formats the given text as a member of the given team, using the team's prefix and suffix.
+     */
+    public static String formatPlayerName(@Nullable Team teamIn, String string)
+    {
+        return teamIn == null ? string : teamIn.formatString(string);
+    }
+
+    /**
+     * Checks whether friendly fire (PVP between members of the team) is allowed.
+     */
     public boolean getAllowFriendlyFire()
     {
         return this.allowFriendlyFire;
     }
 
+    /**
+     * Sets whether friendly fire (PVP between members of the team) is allowed.
+     */
     public void setAllowFriendlyFire(boolean friendlyFire)
     {
         this.allowFriendlyFire = friendlyFire;
-        this.theScoreboard.sendTeamUpdate(this);
+        this.scoreboard.broadcastTeamInfoUpdate(this);
     }
 
+    /**
+     * Checks whether members of this team can see other members that are invisible.
+     */
     public boolean getSeeFriendlyInvisiblesEnabled()
     {
         return this.canSeeFriendlyInvisibles;
     }
 
+    /**
+     * Sets whether members of this team can see other members that are invisible.
+     */
     public void setSeeFriendlyInvisiblesEnabled(boolean friendlyInvisibles)
     {
         this.canSeeFriendlyInvisibles = friendlyInvisibles;
-        this.theScoreboard.sendTeamUpdate(this);
+        this.scoreboard.broadcastTeamInfoUpdate(this);
     }
 
+    /**
+     * Gets the visibility flags for player name tags.
+     */
     public Team.EnumVisible getNameTagVisibility()
     {
         return this.nameTagVisibility;
     }
 
+    /**
+     * Gets the visibility flags for player death messages.
+     */
     public Team.EnumVisible getDeathMessageVisibility()
     {
         return this.deathMessageVisibility;
     }
 
-    public void setNameTagVisibility(Team.EnumVisible p_178772_1_)
+    /**
+     * Sets the visibility flags for player name tags.
+     */
+    public void setNameTagVisibility(Team.EnumVisible visibility)
     {
-        this.nameTagVisibility = p_178772_1_;
-        this.theScoreboard.sendTeamUpdate(this);
+        this.nameTagVisibility = visibility;
+        this.scoreboard.broadcastTeamInfoUpdate(this);
     }
 
-    public void setDeathMessageVisibility(Team.EnumVisible p_178773_1_)
+    /**
+     * Sets the visibility flags for player death messages.
+     */
+    public void setDeathMessageVisibility(Team.EnumVisible visibility)
     {
-        this.deathMessageVisibility = p_178773_1_;
-        this.theScoreboard.sendTeamUpdate(this);
+        this.deathMessageVisibility = visibility;
+        this.scoreboard.broadcastTeamInfoUpdate(this);
     }
 
-    public int func_98299_i()
+    /**
+     * Gets the rule to be used for handling collisions with members of this team.
+     */
+    public Team.CollisionRule getCollisionRule()
+    {
+        return this.collisionRule;
+    }
+
+    /**
+     * Sets the rule to be used for handling collisions with members of this team.
+     */
+    public void setCollisionRule(Team.CollisionRule rule)
+    {
+        this.collisionRule = rule;
+        this.scoreboard.broadcastTeamInfoUpdate(this);
+    }
+
+    /**
+     * Gets a bitmask containing the friendly fire and invisibles flags.
+     */
+    public int getFriendlyFlags()
     {
         int i = 0;
 
@@ -166,19 +232,30 @@ public class ScorePlayerTeam extends Team
         return i;
     }
 
-    public void func_98298_a(int p_98298_1_)
+    /**
+     * Sets friendly fire and invisibles flags based off of the given bitmask.
+     */
+    public void setFriendlyFlags(int flags)
     {
-        this.setAllowFriendlyFire((p_98298_1_ & 1) > 0);
-        this.setSeeFriendlyInvisiblesEnabled((p_98298_1_ & 2) > 0);
+        this.setAllowFriendlyFire((flags & 1) > 0);
+        this.setSeeFriendlyInvisiblesEnabled((flags & 2) > 0);
     }
 
-    public void setChatFormat(EnumChatFormatting p_178774_1_)
+    /**
+     * Sets the color for this team. The team color is used mainly for team kill objectives and team-specific setDisplay
+     * usage; it does _not_ affect all situations (for instance, the prefix is used for the glowing effect).
+     */
+    public void setColor(TextFormatting color)
     {
-        this.chatFormat = p_178774_1_;
+        this.color = color;
     }
 
-    public EnumChatFormatting getChatFormat()
+    /**
+     * Gets the color for this team. The team color is used mainly for team kill objectives and team-specific setDisplay
+     * usage; it does _not_ affect all situations (for instance, the prefix is used for the glowing effect).
+     */
+    public TextFormatting getColor()
     {
-        return this.chatFormat;
+        return this.color;
     }
 }

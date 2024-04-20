@@ -2,20 +2,20 @@ package net.minecraft.entity.ai;
 
 import java.util.List;
 import java.util.Random;
+import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.entity.EntityAgeable;
 import net.minecraft.entity.item.EntityXPOrb;
 import net.minecraft.entity.passive.EntityAnimal;
-import net.minecraft.entity.passive.EntityCow;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.stats.AchievementList;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.stats.StatList;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.world.World;
 
 public class EntityAIMate extends EntityAIBase
 {
-    private EntityAnimal theAnimal;
-    World theWorld;
+    private final EntityAnimal animal;
+    private final Class <? extends EntityAnimal > mateClass;
+    World world;
     private EntityAnimal targetMate;
 
     /**
@@ -28,9 +28,15 @@ public class EntityAIMate extends EntityAIBase
 
     public EntityAIMate(EntityAnimal animal, double speedIn)
     {
-        this.theAnimal = animal;
-        this.theWorld = animal.worldObj;
-        this.moveSpeed = speedIn;
+        this(animal, speedIn, animal.getClass());
+    }
+
+    public EntityAIMate(EntityAnimal p_i47306_1_, double p_i47306_2_, Class <? extends EntityAnimal > p_i47306_4_)
+    {
+        this.animal = p_i47306_1_;
+        this.world = p_i47306_1_.world;
+        this.mateClass = p_i47306_4_;
+        this.moveSpeed = p_i47306_2_;
         this.setMutexBits(3);
     }
 
@@ -39,7 +45,7 @@ public class EntityAIMate extends EntityAIBase
      */
     public boolean shouldExecute()
     {
-        if (!this.theAnimal.isInLove())
+        if (!this.animal.isInLove())
         {
             return false;
         }
@@ -53,13 +59,13 @@ public class EntityAIMate extends EntityAIBase
     /**
      * Returns whether an in-progress EntityAIBase should continue executing
      */
-    public boolean continueExecuting()
+    public boolean shouldContinueExecuting()
     {
         return this.targetMate.isEntityAlive() && this.targetMate.isInLove() && this.spawnBabyDelay < 60;
     }
 
     /**
-     * Resets the task
+     * Reset the task's internal state. Called when this task is interrupted by another one
      */
     public void resetTask()
     {
@@ -68,15 +74,15 @@ public class EntityAIMate extends EntityAIBase
     }
 
     /**
-     * Updates the task
+     * Keep ticking a continuous task that has already been started
      */
     public void updateTask()
     {
-        this.theAnimal.getLookHelper().setLookPositionWithEntity(this.targetMate, 10.0F, (float)this.theAnimal.getVerticalFaceSpeed());
-        this.theAnimal.getNavigator().tryMoveToEntityLiving(this.targetMate, this.moveSpeed);
+        this.animal.getLookHelper().setLookPositionWithEntity(this.targetMate, 10.0F, (float)this.animal.getVerticalFaceSpeed());
+        this.animal.getNavigator().tryMoveToEntityLiving(this.targetMate, this.moveSpeed);
         ++this.spawnBabyDelay;
 
-        if (this.spawnBabyDelay >= 60 && this.theAnimal.getDistanceSqToEntity(this.targetMate) < 9.0D)
+        if (this.spawnBabyDelay >= 60 && this.animal.getDistanceSq(this.targetMate) < 9.0D)
         {
             this.spawnBaby();
         }
@@ -88,17 +94,16 @@ public class EntityAIMate extends EntityAIBase
      */
     private EntityAnimal getNearbyMate()
     {
-        float f = 8.0F;
-        List<EntityAnimal> list = this.theWorld.<EntityAnimal>getEntitiesWithinAABB(this.theAnimal.getClass(), this.theAnimal.getEntityBoundingBox().expand((double)f, (double)f, (double)f));
+        List<EntityAnimal> list = this.world.<EntityAnimal>getEntitiesWithinAABB(this.mateClass, this.animal.getEntityBoundingBox().grow(8.0D));
         double d0 = Double.MAX_VALUE;
         EntityAnimal entityanimal = null;
 
         for (EntityAnimal entityanimal1 : list)
         {
-            if (this.theAnimal.canMateWith(entityanimal1) && this.theAnimal.getDistanceSqToEntity(entityanimal1) < d0)
+            if (this.animal.canMateWith(entityanimal1) && this.animal.getDistanceSq(entityanimal1) < d0)
             {
                 entityanimal = entityanimal1;
-                d0 = this.theAnimal.getDistanceSqToEntity(entityanimal1);
+                d0 = this.animal.getDistanceSq(entityanimal1);
             }
         }
 
@@ -110,50 +115,46 @@ public class EntityAIMate extends EntityAIBase
      */
     private void spawnBaby()
     {
-        EntityAgeable entityageable = this.theAnimal.createChild(this.targetMate);
+        EntityAgeable entityageable = this.animal.createChild(this.targetMate);
 
         if (entityageable != null)
         {
-            EntityPlayer entityplayer = this.theAnimal.getPlayerInLove();
+            EntityPlayerMP entityplayermp = this.animal.getLoveCause();
 
-            if (entityplayer == null && this.targetMate.getPlayerInLove() != null)
+            if (entityplayermp == null && this.targetMate.getLoveCause() != null)
             {
-                entityplayer = this.targetMate.getPlayerInLove();
+                entityplayermp = this.targetMate.getLoveCause();
             }
 
-            if (entityplayer != null)
+            if (entityplayermp != null)
             {
-                entityplayer.triggerAchievement(StatList.animalsBredStat);
-
-                if (this.theAnimal instanceof EntityCow)
-                {
-                    entityplayer.triggerAchievement(AchievementList.breedCow);
-                }
+                entityplayermp.addStat(StatList.ANIMALS_BRED);
+                CriteriaTriggers.BRED_ANIMALS.trigger(entityplayermp, this.animal, this.targetMate, entityageable);
             }
 
-            this.theAnimal.setGrowingAge(6000);
+            this.animal.setGrowingAge(6000);
             this.targetMate.setGrowingAge(6000);
-            this.theAnimal.resetInLove();
+            this.animal.resetInLove();
             this.targetMate.resetInLove();
             entityageable.setGrowingAge(-24000);
-            entityageable.setLocationAndAngles(this.theAnimal.posX, this.theAnimal.posY, this.theAnimal.posZ, 0.0F, 0.0F);
-            this.theWorld.spawnEntityInWorld(entityageable);
-            Random random = this.theAnimal.getRNG();
+            entityageable.setLocationAndAngles(this.animal.posX, this.animal.posY, this.animal.posZ, 0.0F, 0.0F);
+            this.world.spawnEntity(entityageable);
+            Random random = this.animal.getRNG();
 
             for (int i = 0; i < 7; ++i)
             {
                 double d0 = random.nextGaussian() * 0.02D;
                 double d1 = random.nextGaussian() * 0.02D;
                 double d2 = random.nextGaussian() * 0.02D;
-                double d3 = random.nextDouble() * (double)this.theAnimal.width * 2.0D - (double)this.theAnimal.width;
-                double d4 = 0.5D + random.nextDouble() * (double)this.theAnimal.height;
-                double d5 = random.nextDouble() * (double)this.theAnimal.width * 2.0D - (double)this.theAnimal.width;
-                this.theWorld.spawnParticle(EnumParticleTypes.HEART, this.theAnimal.posX + d3, this.theAnimal.posY + d4, this.theAnimal.posZ + d5, d0, d1, d2, new int[0]);
+                double d3 = random.nextDouble() * (double)this.animal.width * 2.0D - (double)this.animal.width;
+                double d4 = 0.5D + random.nextDouble() * (double)this.animal.height;
+                double d5 = random.nextDouble() * (double)this.animal.width * 2.0D - (double)this.animal.width;
+                this.world.spawnParticle(EnumParticleTypes.HEART, this.animal.posX + d3, this.animal.posY + d4, this.animal.posZ + d5, d0, d1, d2);
             }
 
-            if (this.theWorld.getGameRules().getBoolean("doMobLoot"))
+            if (this.world.getGameRules().getBoolean("doMobLoot"))
             {
-                this.theWorld.spawnEntityInWorld(new EntityXPOrb(this.theWorld, this.theAnimal.posX, this.theAnimal.posY, this.theAnimal.posZ, random.nextInt(7) + 1));
+                this.world.spawnEntity(new EntityXPOrb(this.world, this.animal.posX, this.animal.posY, this.animal.posZ, random.nextInt(7) + 1));
             }
         }
     }
